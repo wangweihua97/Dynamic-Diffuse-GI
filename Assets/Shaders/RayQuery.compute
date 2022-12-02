@@ -1,0 +1,32 @@
+﻿#pragma kernel CSMain
+
+#include "Packages/ga.fuquna.computeshaderbvhmeshhit/BvhQuery.hlsl"
+
+Texture2D<float4> rayOrigin;
+Texture2D<float4> rayDirection;
+
+RWTexture2D<float3> posMap;
+RWTexture2D<float3> normalMap;
+RWTexture2D<float2> uvMap;
+RWTexture2D<int> indexMap;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    float3 rayStart = rayOrigin[id.xy].xyz;
+    float3 rayDir = rayDirection[id.xy].xyz;
+    float3 pos;
+    float3 normal;
+    float rayScale;
+    float2 uv = float2(0,0);
+    int index = -1;
+    
+    if (TraverseBvh_(rayStart, rayDir * 1000, rayScale, normal ,uv ,index) )
+    {
+        pos = rayStart + rayDir * 1000 * rayScale;
+    }
+    posMap[id.xy] = pos;
+    normalMap[id.xy] = normal;
+    indexMap[id.xy] = index;
+    uvMap[id.xy] = uv;
+}

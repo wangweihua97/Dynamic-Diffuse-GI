@@ -53,11 +53,6 @@ namespace ComputeShaderBvhMeshHit
                 var trans = mf.transform;
                 var worldVertices = mesh.vertices.Select(vtx => trans.TransformPoint(vtx)).ToList();
 
-                int a = mesh.vertices.Length;
-                int b = mesh.uv.Length;
-                int c = mesh.triangles.Length;
-                int d = mesh.normals.Length;
-                ;
                 return Enumerable.Range(0, triangles.Length / 3).Select(i =>
                 {
                     var pos0 = worldVertices[triangles[i * 3 + 0]];
