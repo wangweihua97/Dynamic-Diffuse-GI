@@ -75,6 +75,8 @@ const float minProgressDistance = 0.01;
 // probe xyz indices
 #define GridCoord int3
 
+#define Irradiance3 float3
+
 
 ///////////////////////////////////////////
 

@@ -29,6 +29,7 @@ namespace MyDDGI
         private List<Triangle> totalTriangles;
 
         private List<GoInfo> _goInfos;
+        private List<Texture> _renderTextures;
         
         GraphicsBuffer bvhBuffer;
         GraphicsBuffer triangleBuffer;
@@ -40,6 +41,8 @@ namespace MyDDGI
         {
             totalBvhDatas = new List<BvhData>();
             totalTriangles = new List<Triangle>();
+            
+            _renderTextures = new List<Texture>();
             
             _gos = new List<BVH_GO>();
             _bvhs = new List<BvhAsset>();
@@ -64,6 +67,8 @@ namespace MyDDGI
                 _goInfos.Add(goInfo);
                 totalBvhDatas.AddRange(go.bvhAsset.bvhDatas);
                 totalTriangles.AddRange(go.bvhAsset.triangles);
+                
+                _renderTextures.Add(go.GetComponent<MeshRenderer>().sharedMaterial.mainTexture);
             }
 
             CreateBuffers();

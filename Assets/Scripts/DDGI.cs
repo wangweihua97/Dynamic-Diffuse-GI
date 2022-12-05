@@ -101,6 +101,8 @@ namespace MyDDGI
         GraphicsBuffer m_randomDirBuffer;
         GraphicsBuffer m_irradianceFieldBuffer;
         public ComputeShader GenerateRays;
+        public ComputeShader RayQuery;
+        public ComputeShader DirectRenderRayHitGBuffer;
 
         public IrradianceField L;
 
@@ -137,7 +139,9 @@ namespace MyDDGI
         
         RenderTexture CreatAboutProbesRenderTexture(GraphicsFormat graphicsFormat)
         {
-            var renderTexture = new RenderTexture(irradianceOctResolution * irradianceOctResolution * 4 ,probeCounts.x * probeCounts.y * probeCounts.z,graphicsFormat,GraphicsFormat.None);
+            int irradianceWidth = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int irradianceHeight = (irradianceOctResolution + 2) * probeCounts.z + 2;
+            var renderTexture = new RenderTexture(irradianceWidth,irradianceHeight,graphicsFormat,GraphicsFormat.None);
             renderTexture.enableRandomWrite = true;
             renderTexture.Create();
             return renderTexture;
@@ -171,6 +175,19 @@ namespace MyDDGI
             GenerateRays.Dispatch(kernelHandle, irradianceRaysPerProbe / 8, ProbeAmount / 8, 1);
         }
 
+        void StartRayQuery()
+        {
+            int kernelHandle = RayQuery.FindKernel("CSMain");
+            RayQuery.SetTexture(kernelHandle, "rayOrigin", m_irradianceRayOrigins);
+            RayQuery.SetTexture(kernelHandle, "rayDirection", m_irradianceRayDirections);
+
+            RayQuery.SetTexture(kernelHandle, "posMap", m_rayHitPoses);
+            RayQuery.SetTexture(kernelHandle, "normalMap", m_rayHitNormals);
+            RayQuery.SetTexture(kernelHandle, "uvMap", m_rayHitUvs);
+            RayQuery.SetTexture(kernelHandle, "indexMap", m_rayHitIndexs);
+            RayQuery.Dispatch(kernelHandle, irradianceRaysPerProbe / 8, ProbeAmount / 8, 1);
+        }
+
         float3x3 GetRandomRayMat()
         {
             float3 dir = new float3(
@@ -187,6 +204,7 @@ namespace MyDDGI
         private void Update()
         {
             GenerateRandomRays();
+            StartRayQuery();
         }
     }
 }

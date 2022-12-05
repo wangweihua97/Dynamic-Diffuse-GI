@@ -1,114 +1,150 @@
-﻿/*
-  Computes indirect radiance at a surfel based on the surrounding probe cage.
-  Uses helpers from the G3D innovation engine (http://g3d.sf.net)
-*/
-
-#version 420 // -*- c++ -*-
-
-#extension GL_ARB_texture_query_lod : enable
-
-#include <compatibility.glsl>
-#include <g3dmath.glsl>
-#include <LightingEnvironment/LightingEnvironment_uniforms.glsl>
-#include <Light/Light.glsl>
-#include <Texture/Texture.glsl>
-#include <GBuffer/GBuffer.glsl>
-#include <reconstructFromDepth.glsl>
-#include <octahedral.glsl>
-#include <noise.glsl>
-
+﻿#pragma kernel CSMain
 #include "GridHelpers.glsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-// Optional per-pixel buffers for computing the outgoing light ("view") vector.
-// Compile away if unused.
-uniform_Texture(sampler2D, gbuffer_WS_RAY_DIRECTION_);
-uniform_Texture(sampler2D, gbuffer_WS_RAY_ORIGIN_);
-
-// Declare a GBuffer with no prefix
-uniform_GBuffer(gbuffer_);
-
-uniform int probeSideLength;
+int probeSideLength;
 
 // Combat the sensitive perception of very small amounts of light leaking
 // and then recursively lighting closed rooms by losing energy with each shade
-uniform float energyPreservation;
+float energyPreservation;
+float3 camarePosWS;
+int2 baseColorMapSize;
 
-uniform IrradianceField irradianceFieldSurface;
+IrradianceField irradianceFieldSurface;
 
-out Color3 E_lambertianIndirect;
-out Color3 E_glossyIndirect;
+float pow3(float x) { return x * x * x; }
 
-vec2 textureCoordFromDirection(vec3 dir, int probeIndex, int fullTextureWidth, int fullTextureHeight, int probeSideLength) {
-    vec2 normalizedOctCoord = octEncode(normalize(dir));
-    vec2 normalizedOctCoordZeroOne = (normalizedOctCoord + vec2(1.0f)) * 0.5f;
+float signNotZero(in float k) {
+    return (k >= 0.0) ? 1.0 : -1.0;
+}
+
+float2 signNotZero(in float2 v) {
+    return float2(signNotZero(v.x), signNotZero(v.y));
+}
+
+float3 octDecode(float2 o) {
+    float3 v = float3(o.x, o.y, 1.0 - abs(o.x) - abs(o.y));
+    if (v.z < 0.0) {
+        v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);
+    }
+    return normalize(v);
+}
+
+float2 octEncode(in float3 v) {
+    float l1norm = abs(v.x) + abs(v.y) + abs(v.z);
+    float2 result = v.xy * (1.0 / l1norm);
+    if (v.z < 0.0) {
+        result = (1.0 - abs(result.yx)) * signNotZero(result.xy);
+    }
+    return result;
+}
+
+float2 textureCoordFromDirection(float3 dir, int probeIndex, int fullTextureWidth, int fullTextureHeight, int probeSideLength) {
+    float2 normalizedOctCoord = octEncode(normalize(dir));
+    float2 normalizedOctCoordZeroOne = (normalizedOctCoord + float2(1.0f)) * 0.5f;
 
     // Length of a probe side, plus one pixel on each edge for the border
     float probeWithBorderSide = (float)probeSideLength + 2.0f;
 
-    vec2 octCoordNormalizedToTextureDimensions = (normalizedOctCoordZeroOne * (float)probeSideLength) / vec2((float)fullTextureWidth, (float)fullTextureHeight);
+    float2 octCoordNormalizedToTextureDimensions = (normalizedOctCoordZeroOne * (float)probeSideLength) / float2((float)fullTextureWidth, (float)fullTextureHeight);
 
     int probesPerRow = (fullTextureWidth - 2) / (int)probeWithBorderSide;
 
     // Add (2,2) back to texCoord within larger texture. Compensates for 1 pix 
     // border around texture and further 1 pix border around top left probe.
-    vec2 probeTopLeftPosition = vec2(mod(probeIndex, probesPerRow) * probeWithBorderSide,
-        (probeIndex / probesPerRow) * probeWithBorderSide) + vec2(2.0f, 2.0f);
+    float2 probeTopLeftPosition = float2(mod(probeIndex, probesPerRow) * probeWithBorderSide,
+        (probeIndex / probesPerRow) * probeWithBorderSide) + float2(2.0f, 2.0f);
 
-    vec2 normalizedProbeTopLeftPosition = vec2(probeTopLeftPosition) / vec2((float)fullTextureWidth, (float)fullTextureHeight);
+    float2 normalizedProbeTopLeftPosition = float2(probeTopLeftPosition) / float2((float)fullTextureWidth, (float)fullTextureHeight);
 
-    return vec2(normalizedProbeTopLeftPosition + octCoordNormalizedToTextureDimensions);
+    return float2(normalizedProbeTopLeftPosition + octCoordNormalizedToTextureDimensions);
 }
 
-void main() {
+float3 BlinnPhongLighting(float3 posWS ,float3 normalWS ,int index ,float2 uv ,float3 v)
+{
+    float4 SHADOW_COORDS = TransformWorldToShadowCoord(posWS);
+    Light light = GetMainLight(SHADOW_COORDS);
+    
+    half3 v = normalize(camarePosWS - posWS);
+    half3 h = normalize(light.direction + v);
+    
+    half nl = max(0.0,dot(light.direction ,normalWS));
+    half nh = max(0.0,dot(h ,n));
+    
+    half atten = light.shadowAttenuation;
+    int2 iuv = int2(baseColorMapSize * uv);
+    float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,index)].xyz;
+    half3 diffuse = nl * baseCorlorz* light.color;
+    half3 specular = atten * light.color * pow(nh ,16);
+    return diffuse + specular;
+}
+
+Texture2DArray<float4> baseColorMaps;
+
+RWTexture2D<float3> posMap;
+RWTexture2D<float3> normalMap;
+RWTexture2D<float2> uvMap;
+RWTexture2D<int> indexMap;
+Texture2D<float4> rayOrigin;
+
+RWTexture2D<float3> oldIrradianceMap;
+RWTexture2D<float2> oldIrradianceMap;
+
+RWTexture2D<float3> irradianceMap;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
     // Screen-space point being shaded
-    ivec2 C = ivec2(gl_FragCoord.xy);
+    uint2 C = id.xy;
 
-    Vector3 wsN = texelFetch(gbuffer_WS_NORMAL_buffer, C, 0).xyz;
-
-    if (dot(wsN, wsN) < 0.01) {
-        E_glossyIndirect = Color3(0);
-        E_lambertianIndirect = Color3(0);
+    float3 wsN = normalMap[C].xyz;
+    float3 wsPosition = posMap[C].xyz;
+    int hitIndex = indexMap[C].xyz;
+    float2 hitUv = uvMap[C].xyz;
+    
+    if (dot(wsN, wsN) < 0.01 || hitIndex < 0) {
+        irradianceMap[C] = float3(0,0,0);
         return;
     }
-    
-    Point3 wsPosition = texelFetch(gbuffer_WS_POSITION_buffer, C, 0).xyz;
-
     // View vector
-    Vector3 w_o = normalize(texelFetch(gbuffer_WS_RAY_ORIGIN_buffer, C, 0).xyz - wsPosition);
+    float3 w_o = normalize(rayOrigin[C].xyz - wsPosition);
 
     // Glossy coefficient in BSDF (this code unpacks
     // G3D::UniversalBSDF's encoding)
-    Color4  F0 = texelFetch(gbuffer_GLOSSY_buffer, C, 0);
+    /*float4  F0 = texelFetch(gbuffer_GLOSSY_buffer, C, 0);
 
     float glossyExponent = smoothnessToBlinnPhongExponent(F0.a);
 
     float cos_o = dot(wsN, w_o);
 
-    // Incoming reflection vector
-    Vector3 w_mi = normalize(wsN * (2.0 * cos_o) - w_o);
+    float3 w_mi = normalize(wsN * (2.0 * cos_o) - w_o);
 
-    E_glossyIndirect = computeGlossyEnvironmentMapLighting(w_mi, (F0.a == 1.0), glossyExponent, false);
+    E_glossyIndirect = computeGlossyEnvironmentMapLighting(w_mi, (F0.a == 1.0), glossyExponent, false);*/
+    
+    float3 blinnPhong = BlinnPhongLighting(wsPosition ,wsN ,hitIndex ,hitUv ,w_o);
 
-    ivec3 baseGridCoord = baseGridCoord(irradianceFieldSurface, wsPosition);
-    Point3 baseProbePos = gridCoordToPosition(irradianceFieldSurface, baseGridCoord);
-    Irradiance3 sumIrradiance = Irradiance3(0);
+    int3 baseGridCoord = baseGridCoord(irradianceFieldSurface, wsPosition);
+    float3 baseProbePos = gridCoordToPosition(irradianceFieldSurface, baseGridCoord);
+    Irradiance3 sumIrradiance = Irradiance3(0,0,0);
     float sumWeight = 0.0;
 
     // alpha is how far from the floor(currentVertex) position. on [0, 1] for each axis.
-    Vector3 alpha = clamp((wsPosition - baseProbePos) / irradianceFieldSurface.probeStep, Vector3(0), Vector3(1));
+    float3 alpha = clamp((wsPosition - baseProbePos) / irradianceFieldSurface.probeStep, float3(0), float3(1));
 
     // Iterate over adjacent probe cage
     for (int i = 0; i < 8; ++i) {
         // Compute the offset grid coord and clamp to the probe grid boundary
         // Offset = 0 or 1 along each axis
-        GridCoord  offset = ivec3(i, i >> 1, i >> 2) & ivec3(1);
+        GridCoord  offset = int3(i, i >> 1, i >> 2) & int3(1);
         GridCoord  probeGridCoord = clamp(baseGridCoord + offset, GridCoord(0), GridCoord(irradianceFieldSurface.probeCounts - 1));
         ProbeIndex p = gridCoordToProbeIndex(irradianceFieldSurface, probeGridCoord);
 
         // Make cosine falloff in tangent plane with respect to the angle from the surface to the probe so that we never
         // test a probe that is *behind* the surface.
         // It doesn't have to be cosine, but that is efficient to compute and we must clip to the tangent plane.
-        Point3 probePos = gridCoordToPosition(irradianceFieldSurface, probeGridCoord);
+        float3 probePos = gridCoordToPosition(irradianceFieldSurface, probeGridCoord);
 
         // Bias the position at which visibility is computed; this
         // avoids performing a shadow test *at* a surface, which is a
@@ -118,14 +154,14 @@ void main() {
         // then samples can pass through thin occluders to the other
         // side (this can only happen if there are MULTIPLE occluders
         // near each other, a wall surface won't pass through itself.)
-        Vector3 probeToPoint = wsPosition - probePos + (wsN + 3.0 * w_o) * irradianceFieldSurface.normalBias;
-        Vector3 dir = normalize(-probeToPoint);
+        float3 probeToPoint = wsPosition - probePos + (wsN + 3.0 * w_o) * irradianceFieldSurface.normalBias;
+        float3 dir = normalize(-probeToPoint);
 
         // Compute the trilinear weights based on the grid cell vertex to smoothly
         // transition between probes. Avoid ever going entirely to zero because that
         // will cause problems at the border probes. This isn't really a lerp. 
         // We're using 1-a when offset = 0 and a when offset = 1.
-        Vector3 trilinear = lerp(1.0 - alpha, alpha, offset);
+        float3 trilinear = lerp(1.0 - alpha, alpha, offset);
         float weight = 1.0;
 
         // Clamp all of the multiplies. We can't let the weight go to zero because then it would be 
@@ -138,7 +174,7 @@ void main() {
             // Computed without the biasing applied to the "dir" variable. 
             // This test can cause reflection-map looking errors in the image
             // (stuff looks shiny) if the transition is poor.
-            Vector3 trueDirectionToProbe = normalize(probePos - wsPosition);
+            float3 trueDirectionToProbe = normalize(probePos - wsPosition);
 
             // The naive soft backface weight would ignore a probe when
             // it is behind the surface. That's good for walls. But for small details inside of a
@@ -154,7 +190,7 @@ void main() {
         
         // Moment visibility test
         {
-            vec2 texCoord = textureCoordFromDirection(-dir,
+            float2 texCoord = textureCoordFromDirection(-dir,
                 p,
                 irradianceFieldSurface.depthTextureWidth,
                 irradianceFieldSurface.depthTextureHeight,
@@ -179,9 +215,9 @@ void main() {
         // Avoid zero weight
         weight = max(0.000001, weight);
                  
-        Vector3 irradianceDir = wsN;
+        float3 irradianceDir = wsN;
 
-        vec2 texCoord = textureCoordFromDirection(normalize(irradianceDir),
+        float2 texCoord = textureCoordFromDirection(normalize(irradianceDir),
             p,
             irradianceFieldSurface.irradianceTextureWidth,
             irradianceFieldSurface.irradianceTextureHeight,
@@ -220,5 +256,5 @@ void main() {
 #   endif
     netIrradiance *= energyPreservation;
 
-    E_lambertianIndirect = 0.5 * pi * netIrradiance;
+    irradianceMap[C] = 0.5 * pi * netIrradiance + blinnPhong;
 }
