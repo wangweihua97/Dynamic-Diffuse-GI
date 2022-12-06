@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 863fd9f1198d65048ac60bc63863b921, type: 3}
+  m_Name: Ground
+  m_EditorClassIdentifier: 
+  bvhDatas:
+  - min: {x: -20.406322, y: -0.0000019073486, z: -12.435102}
+    max: {x: 20.406322, y: 0.0000019073486, z: 13.0728}
+    leftIdx: -1
+    rightIdx: -1
+    triangleIdx: 0
+    triangleCount: 2
+  triangles:
+  - pos0: {x: 20.406322, y: -0.0000019073486, z: -12.435102}
+    pos1: {x: -20.406322, y: -0.0000019073486, z: -12.435102}
+    pos2: {x: -20.406322, y: 0.0000019073486, z: 13.0728}
+    normal: {x: -0, y: 1, z: -0.00000014954963}
+    uv0: {x: 0, y: 0.8046875}
+    uv1: {x: 1, y: 0.8046875}
+    uv2: {x: 1, y: 0.1796875}
+  - pos0: {x: 20.406322, y: -0.0000019073486, z: -12.435102}
+    pos1: {x: -20.406322, y: 0.0000019073486, z: 13.0728}
+    pos2: {x: 20.406322, y: 0.0000019073486, z: 13.0728}
+    normal: {x: -0, y: 1, z: -0.00000014954963}
+    uv0: {x: 0, y: 0.8046875}
+    uv1: {x: 1, y: 0.1796875}
+    uv2: {x: 0, y: 0.1796875}

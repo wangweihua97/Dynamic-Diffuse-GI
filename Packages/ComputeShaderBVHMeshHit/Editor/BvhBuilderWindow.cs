@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -39,7 +40,11 @@ namespace ComputeShaderBvhMeshHit.Editor
                     defaultName = Path.GetFileName(lastPath);
                 }
 
-                var path = EditorUtility.SaveFilePanel("Save Bvh asset",  directory, defaultName, "asset");
+                //var path = EditorUtility.SaveFilePanel("Save Bvh asset",  directory, defaultName, "asset");
+                var meshObjectRootPath = AssetDatabase.GetAssetPath(meshObjectRoot);
+                FileInfo meshObjectRootFileInfo = new FileInfo(meshObjectRootPath);
+
+                var path = meshObjectRootFileInfo.Directory.FullName + "/" + meshObjectRootFileInfo.Name.Split('.').First() + ".asset";
                 if (!string.IsNullOrEmpty(path))
                 {
                     lastPath = path;

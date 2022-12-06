@@ -3,7 +3,52 @@ guid: 3d22c274f37e0bc48964b18737ca5b1c
 ModelImporter:
   serializedVersion: 21300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: GnF
+    second: {fileID: 2100000, guid: fd1f786898be4054bb8bf26c1b929e54, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Ground
+    second: {fileID: 2100000, guid: d501b4d00e6f879498e5d0de0e721d97, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAIN
+    second: {fileID: 2100000, guid: 51ebfdbda63c9be4aa1a9ac96a544976, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MAIN.001
+    second: {fileID: 2100000, guid: 6d046b51e2ebe59498b2f313dfc060b3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: MossNRock.001
+    second: {fileID: 2100000, guid: aea721186dd306b458b304196d7117a1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: ROOFM
+    second: {fileID: 2100000, guid: 9fefe960414b0c74981799d2768a1f1d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: ROOFM.001
+    second: {fileID: 2100000, guid: b4c20c794e2cc894d88fa63b944dd9de, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Window
+    second: {fileID: 2100000, guid: 4e2c7807c2580cb4fb26fdb2a69e9e82, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Window.001
+    second: {fileID: 2100000, guid: df1323eca7c7860438e03ae9591ab97e, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

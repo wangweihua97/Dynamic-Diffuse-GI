@@ -23,15 +23,15 @@ namespace ComputeShaderBvhMeshHit
         }
 
 
-        public void DrwaGizmo(int gizmoDepth, bool gizmoOnlyLeafNode = false)
+        public void DrwaGizmo(int gizmoDepth, bool gizmoOnlyLeafNode = false ,Vector3 posWS = default)
         {
             if (bvhDatas != null)
             {
-                DrawBvhGizmo(0, gizmoDepth, gizmoOnlyLeafNode);
+                DrawBvhGizmo(0, gizmoDepth, gizmoOnlyLeafNode ,posWS);
             }
         }
 
-        void DrawBvhGizmo(int idx, int gizmoDepth, bool gizmoOnlyLeafNode, int recursiveCount = 0)
+        void DrawBvhGizmo(int idx, int gizmoDepth, bool gizmoOnlyLeafNode,Vector3 posWS = default, int recursiveCount = 0)
         {
             if (idx < 0 || bvhDatas.Count <= idx) return;
 
@@ -45,9 +45,9 @@ namespace ComputeShaderBvhMeshHit
                     for (var i = 0; i < data.triangleCount; ++i)
                     {
                         var tri = triangles[i + data.triangleIdx];
-                        Gizmos.DrawLine(tri.pos0, tri.pos1);
-                        Gizmos.DrawLine(tri.pos0, tri.pos2);
-                        Gizmos.DrawLine(tri.pos1, tri.pos2);
+                        Gizmos.DrawLine(posWS + tri.pos0, posWS + tri.pos1);
+                        Gizmos.DrawLine(posWS + tri.pos0, posWS + tri.pos2);
+                        Gizmos.DrawLine(posWS + tri.pos1, posWS + tri.pos2);
                     }
                 }
 
@@ -56,13 +56,13 @@ namespace ComputeShaderBvhMeshHit
                     var bounds = new Bounds() { min = data.min, max = data.max };
 
                     Gizmos.color = data.IsLeaf ? Color.cyan : Color.green;
-                    Gizmos.DrawWireCube(bounds.center, bounds.size);
+                    Gizmos.DrawWireCube(posWS + bounds.center, bounds.size);
                 }
             }
             else if (!data.IsLeaf)
             {
-                DrawBvhGizmo(data.leftIdx, gizmoDepth, gizmoOnlyLeafNode, recursiveCount + 1);
-                DrawBvhGizmo(data.rightIdx, gizmoDepth, gizmoOnlyLeafNode, recursiveCount + 1);
+                DrawBvhGizmo(data.leftIdx, gizmoDepth, gizmoOnlyLeafNode, posWS,recursiveCount + 1);
+                DrawBvhGizmo(data.rightIdx, gizmoDepth, gizmoOnlyLeafNode, posWS,recursiveCount + 1);
             }
         }
     }

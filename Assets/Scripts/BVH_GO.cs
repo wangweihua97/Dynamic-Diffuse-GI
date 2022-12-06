@@ -37,7 +37,7 @@ namespace MyDDGI
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireCube(transform.position + (Vector3)Center_Offset, Size);
             
-            if (bvhAsset != null) bvhAsset.DrwaGizmo(gizmoDepth, gizmoOnlyLeafNode);
+            if (bvhAsset != null) bvhAsset.DrwaGizmo(gizmoDepth, gizmoOnlyLeafNode ,transform.position);
         }
     }
 }
