@@ -20,9 +20,20 @@ RWTexture2D<float2> uvMap;
 RWTexture2D<int> indexMap;
 
 RWTexture2D<float3> rayHitColors;
-RWTexture2D<float2> irradianceMeanMeanSquared;
+Texture2D<float2> irradianceMeanMeanSquared;
 
-RWTexture2D<float3> irradianceMap;
+SamplerState samplerirradianceMeanMeanSquared
+{
+
+    Filter   = MIN_MAG_MIP_LINEAR;
+
+    AddressU = Clamp;
+
+    AddressV = Clamp;
+
+};
+
+Texture2D<float3> irradianceMap;
 
 float pow3(float x) { return x * x * x; }
 
@@ -94,7 +105,6 @@ float3 BlinnPhongLighting(float3 posWS ,float3 normalWS ,int index ,float2 uv ,f
 }
 
 
-
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
@@ -107,7 +117,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float2 hitUv = uvMap[C].xy;
     
     if (dot(wsN, wsN) < 0.01 || hitIndex < 0) {
-        irradianceMap[C] = float3(0,0,0);
+        rayHitColors[C] = float3(0,0,0);
         return;
     }
     // View vector
@@ -199,8 +209,9 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                 L[0].depthProbeSideLength);
 
             float distToProbe = length(probeToPoint);
-            int2 itexCoord = int2(irradianceMapSize * texCoord);
-            float2 temp = irradianceMeanMeanSquared[itexCoord].xy;
+            //int2 itexCoord = int2(irradianceMapSize * texCoord);
+            //float2 temp = irradianceMeanMeanSquared[itexCoord].xy;
+            float2 temp = irradianceMeanMeanSquared.SampleLevel(samplerirradianceMeanMeanSquared, texCoord ,0).rg;
             float mean = temp.x;
             float variance = abs(square(temp.x) - temp.y);
 
@@ -224,9 +235,12 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             L[0].irradianceTextureWidth,
             L[0].irradianceTextureHeight,
             L[0].irradianceProbeSideLength);
-        int2 itexCoord = int2(irradianceMapSize * texCoord);
+        //int2 itexCoord = int2(irradianceMapSize * texCoord);
         //Irradiance3 probeIrradiance = texture(L[0].irradianceProbeGridbuffer, texCoord).rgb;
-        Irradiance3 probeIrradiance = irradianceMap[itexCoord].rgb;
+        //Irradiance3 probeIrradiance = irradianceMap[itexCoord].rgb;
+        
+        Irradiance3 probeIrradiance = irradianceMap.SampleLevel(samplerirradianceMeanMeanSquared, texCoord ,0).xyz;
+        
 
         // A tiny bit of light is really visible due to log perception, so
         // crush tiny weights but keep the curve continuous. This must be done
