@@ -1,19 +1,32 @@
 ﻿#pragma kernel CSMain
-#include "GridHelpers.glsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+#include "GridHelpers.hlsl"
+#define pi 3.1415926535
 
 int probeSideLength;
-
-// Combat the sensitive perception of very small amounts of light leaking
-// and then recursively lighting closed rooms by losing energy with each shade
 float energyPreservation;
-float3 camarePosWS;
 int2 baseColorMapSize;
+int2 irradianceMapSize;
 
-IrradianceField irradianceFieldSurface;
+StructuredBuffer<IrradianceField> L;
+
+Texture2DArray<float4> baseColorMaps;
+Texture2D<float4> rayOrigin;
+
+RWTexture2D<float3> posMap;
+RWTexture2D<float3> normalMap;
+RWTexture2D<float2> uvMap;
+RWTexture2D<int> indexMap;
+
+RWTexture2D<float3> rayHitColors;
+RWTexture2D<float2> irradianceMeanMeanSquared;
+
+RWTexture2D<float3> irradianceMap;
 
 float pow3(float x) { return x * x * x; }
+
+float square(float x){ return x * x;}
 
 float signNotZero(in float k) {
     return (k >= 0.0) ? 1.0 : -1.0;
@@ -42,7 +55,7 @@ float2 octEncode(in float3 v) {
 
 float2 textureCoordFromDirection(float3 dir, int probeIndex, int fullTextureWidth, int fullTextureHeight, int probeSideLength) {
     float2 normalizedOctCoord = octEncode(normalize(dir));
-    float2 normalizedOctCoordZeroOne = (normalizedOctCoord + float2(1.0f)) * 0.5f;
+    float2 normalizedOctCoordZeroOne = (normalizedOctCoord + float2(1.0f,1.0f)) * 0.5f;
 
     // Length of a probe side, plus one pixel on each edge for the border
     float probeWithBorderSide = (float)probeSideLength + 2.0f;
@@ -53,7 +66,7 @@ float2 textureCoordFromDirection(float3 dir, int probeIndex, int fullTextureWidt
 
     // Add (2,2) back to texCoord within larger texture. Compensates for 1 pix 
     // border around texture and further 1 pix border around top left probe.
-    float2 probeTopLeftPosition = float2(mod(probeIndex, probesPerRow) * probeWithBorderSide,
+    float2 probeTopLeftPosition = float2((probeIndex % probesPerRow) * probeWithBorderSide,
         (probeIndex / probesPerRow) * probeWithBorderSide) + float2(2.0f, 2.0f);
 
     float2 normalizedProbeTopLeftPosition = float2(probeTopLeftPosition) / float2((float)fullTextureWidth, (float)fullTextureHeight);
@@ -66,32 +79,21 @@ float3 BlinnPhongLighting(float3 posWS ,float3 normalWS ,int index ,float2 uv ,f
     float4 SHADOW_COORDS = TransformWorldToShadowCoord(posWS);
     Light light = GetMainLight(SHADOW_COORDS);
     
-    half3 v = normalize(camarePosWS - posWS);
     half3 h = normalize(light.direction + v);
     
     half nl = max(0.0,dot(light.direction ,normalWS));
-    half nh = max(0.0,dot(h ,n));
+    half nh = max(0.0,dot(h ,normalWS));
     
     half atten = light.shadowAttenuation;
     int2 iuv = int2(baseColorMapSize * uv);
-    float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,index)].xyz;
-    half3 diffuse = nl * baseCorlorz* light.color;
+    //float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,index)].xyz;
+    float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,0)].xyz;
+    half3 diffuse = nl * baseCorlor* light.color;
     half3 specular = atten * light.color * pow(nh ,16);
     return diffuse + specular;
 }
 
-Texture2DArray<float4> baseColorMaps;
 
-RWTexture2D<float3> posMap;
-RWTexture2D<float3> normalMap;
-RWTexture2D<float2> uvMap;
-RWTexture2D<int> indexMap;
-Texture2D<float4> rayOrigin;
-
-RWTexture2D<float3> oldIrradianceMap;
-RWTexture2D<float2> oldIrradianceMap;
-
-RWTexture2D<float3> irradianceMap;
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
@@ -101,8 +103,8 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
     float3 wsN = normalMap[C].xyz;
     float3 wsPosition = posMap[C].xyz;
-    int hitIndex = indexMap[C].xyz;
-    float2 hitUv = uvMap[C].xyz;
+    int hitIndex = indexMap[C].x;
+    float2 hitUv = uvMap[C].xy;
     
     if (dot(wsN, wsN) < 0.01 || hitIndex < 0) {
         irradianceMap[C] = float3(0,0,0);
@@ -125,26 +127,26 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     
     float3 blinnPhong = BlinnPhongLighting(wsPosition ,wsN ,hitIndex ,hitUv ,w_o);
 
-    int3 baseGridCoord = baseGridCoord(irradianceFieldSurface, wsPosition);
-    float3 baseProbePos = gridCoordToPosition(irradianceFieldSurface, baseGridCoord);
+    int3 gridCoord = baseGridCoord(L[0], wsPosition);
+    float3 baseProbePos = gridCoordToPosition(L[0], gridCoord);
     Irradiance3 sumIrradiance = Irradiance3(0,0,0);
     float sumWeight = 0.0;
 
     // alpha is how far from the floor(currentVertex) position. on [0, 1] for each axis.
-    float3 alpha = clamp((wsPosition - baseProbePos) / irradianceFieldSurface.probeStep, float3(0), float3(1));
+    float3 alpha = clamp((wsPosition - baseProbePos) / L[0].probeStep, float3(0,0,0), float3(1,1,1));
 
     // Iterate over adjacent probe cage
     for (int i = 0; i < 8; ++i) {
         // Compute the offset grid coord and clamp to the probe grid boundary
         // Offset = 0 or 1 along each axis
-        GridCoord  offset = int3(i, i >> 1, i >> 2) & int3(1);
-        GridCoord  probeGridCoord = clamp(baseGridCoord + offset, GridCoord(0), GridCoord(irradianceFieldSurface.probeCounts - 1));
-        ProbeIndex p = gridCoordToProbeIndex(irradianceFieldSurface, probeGridCoord);
+        GridCoord  offset = int3(i, i >> 1, i >> 2) & int3(1,1,1);
+        GridCoord  probeGridCoord = clamp(gridCoord + offset, GridCoord(0,0,0), GridCoord(L[0].probeCounts - GridCoord(1,1,1)));
+        ProbeIndex p = gridCoordToProbeIndex(L[0], probeGridCoord);
 
         // Make cosine falloff in tangent plane with respect to the angle from the surface to the probe so that we never
         // test a probe that is *behind* the surface.
         // It doesn't have to be cosine, but that is efficient to compute and we must clip to the tangent plane.
-        float3 probePos = gridCoordToPosition(irradianceFieldSurface, probeGridCoord);
+        float3 probePos = gridCoordToPosition(L[0], probeGridCoord);
 
         // Bias the position at which visibility is computed; this
         // avoids performing a shadow test *at* a surface, which is a
@@ -154,7 +156,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         // then samples can pass through thin occluders to the other
         // side (this can only happen if there are MULTIPLE occluders
         // near each other, a wall surface won't pass through itself.)
-        float3 probeToPoint = wsPosition - probePos + (wsN + 3.0 * w_o) * irradianceFieldSurface.normalBias;
+        float3 probeToPoint = wsPosition - probePos + (wsN + 3.0 * w_o) * L[0].normalBias;
         float3 dir = normalize(-probeToPoint);
 
         // Compute the trilinear weights based on the grid cell vertex to smoothly
@@ -192,13 +194,13 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         {
             float2 texCoord = textureCoordFromDirection(-dir,
                 p,
-                irradianceFieldSurface.depthTextureWidth,
-                irradianceFieldSurface.depthTextureHeight,
-                irradianceFieldSurface.depthProbeSideLength);
+                L[0].depthTextureWidth,
+                L[0].depthTextureHeight,
+                L[0].depthProbeSideLength);
 
             float distToProbe = length(probeToPoint);
-
-            float2 temp = texture(irradianceFieldSurface.meanMeanSquaredProbeGridbuffer, texCoord, 0).rg;
+            int2 itexCoord = int2(irradianceMapSize * texCoord);
+            float2 temp = irradianceMeanMeanSquared[itexCoord].xy;
             float mean = temp.x;
             float variance = abs(square(temp.x) - temp.y);
 
@@ -219,11 +221,12 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
         float2 texCoord = textureCoordFromDirection(normalize(irradianceDir),
             p,
-            irradianceFieldSurface.irradianceTextureWidth,
-            irradianceFieldSurface.irradianceTextureHeight,
-            irradianceFieldSurface.irradianceProbeSideLength);
-
-        Irradiance3 probeIrradiance = texture(irradianceFieldSurface.irradianceProbeGridbuffer, texCoord).rgb;
+            L[0].irradianceTextureWidth,
+            L[0].irradianceTextureHeight,
+            L[0].irradianceProbeSideLength);
+        int2 itexCoord = int2(irradianceMapSize * texCoord);
+        //Irradiance3 probeIrradiance = texture(L[0].irradianceProbeGridbuffer, texCoord).rgb;
+        Irradiance3 probeIrradiance = irradianceMap[itexCoord].rgb;
 
         // A tiny bit of light is really visible due to log perception, so
         // crush tiny weights but keep the curve continuous. This must be done
@@ -256,5 +259,5 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 #   endif
     netIrradiance *= energyPreservation;
 
-    irradianceMap[C] = 0.5 * pi * netIrradiance + blinnPhong;
+    rayHitColors[C] = 0.5 * pi * netIrradiance + blinnPhong;
 }

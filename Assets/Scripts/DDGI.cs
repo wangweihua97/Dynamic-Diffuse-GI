@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using ComputeShaderBvhMeshHit;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 using Random = UnityEngine.Random;
 
 namespace MyDDGI
@@ -83,8 +85,6 @@ namespace MyDDGI
         bool            showLights = false;
         bool            encloseBounds = false;
         
-        
-        
         RenderTexture                m_irradianceProbes;
         RenderTexture                m_meanDistProbes;
         
@@ -95,6 +95,8 @@ namespace MyDDGI
         RenderTexture                m_rayHitNormals;
         RenderTexture                m_rayHitUvs;
         RenderTexture                m_rayHitIndexs;
+        
+        RenderTexture                m_rayHitGBuffer;
 
         RenderTexture                m_rayHitColors;
 
@@ -103,15 +105,18 @@ namespace MyDDGI
         public ComputeShader GenerateRays;
         public ComputeShader RayQuery;
         public ComputeShader DirectRenderRayHitGBuffer;
+        public List<Texture> Textures;
 
         public IrradianceField L;
 
         int ProbeAmount;
+        private RenderTexture _texture2DArray;
         
 
         private void Awake()
         {
             ProbeAmount = probeCounts.x * probeCounts.y * probeCounts.z;
+            m_rayHitGBuffer = CreatAboutProbesRenderTexture(GraphicsFormat.R8G8B8A8_SRGB);
             m_irradianceProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R8G8B8A8_SRGB);
             m_meanDistProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R16G16_SFloat);
 
@@ -127,6 +132,7 @@ namespace MyDDGI
 
             CreatGraphicsBuffer();
             CreatIrradianceField();
+            CreatTexture2DArray();
         }
         
         RenderTexture CreatAboutRayRenderTexture(GraphicsFormat graphicsFormat)
@@ -147,6 +153,26 @@ namespace MyDDGI
             return renderTexture;
         }
 
+        void CreatTexture2DArray()
+        {
+            RenderTextureDescriptor d = new RenderTextureDescriptor(1024, 1024, RenderTextureFormat.ARGB32);
+            d.dimension = TextureDimension.Tex2DArray;
+            d.volumeDepth = Textures.Count; // We will have 2 slices (I.E. 2 textures) in our texture array.
+
+            _texture2DArray = new RenderTexture(d);
+            _texture2DArray.Create();
+            _texture2DArray.name = "texture2DArray";
+
+            for (int i = 0; i <Textures.Count; i++)
+            {
+                var pauseRenderTexture = RenderTexture.GetTemporary(Textures[i].width, Textures[i].height);
+                Graphics.Blit(Textures[i], pauseRenderTexture);
+                Graphics.CopyTexture(pauseRenderTexture, 0,
+                    _texture2DArray, i);
+            }
+            
+        }
+
         void CreatGraphicsBuffer()
         {
             m_randomDirBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, Marshal.SizeOf<float3x3>());
@@ -157,7 +183,7 @@ namespace MyDDGI
         {
             L.probeStep = probeDimensions;
             L.probeCounts = probeCounts;
-            L.probeStartPosition = new float3(-5,-1,-5);
+            L.probeStartPosition = new float3(-5,-0.5f,-5);
             m_irradianceFieldBuffer.SetData(new []{L});
         }
 
@@ -188,6 +214,31 @@ namespace MyDDGI
             RayQuery.Dispatch(kernelHandle, irradianceRaysPerProbe / 8, ProbeAmount / 8, 1);
         }
 
+        void StartDirectRenderRayHitGBuffer()
+        {
+            int kernelHandle = DirectRenderRayHitGBuffer.FindKernel("CSMain");
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "rayOrigin", m_irradianceRayOrigins);
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "posMap", m_rayHitPoses);
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "normalMap", m_rayHitNormals);
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "uvMap", m_rayHitUvs);
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "indexMap", m_rayHitIndexs);
+            DirectRenderRayHitGBuffer.SetBuffer(kernelHandle ,"L" ,m_irradianceFieldBuffer);
+            
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "rayHitColors", m_rayHitColors);
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "irradianceMeanMeanSquared", m_meanDistProbes);
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "irradianceMap", m_irradianceProbes);
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"baseColorMaps" ,_texture2DArray);
+            
+            DirectRenderRayHitGBuffer.SetInt("probeSideLength" ,irradianceOctResolution);
+            DirectRenderRayHitGBuffer.SetFloat("energyPreservation" ,0.1f);
+            int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
+            DirectRenderRayHitGBuffer.SetInts("baseColorMapSize" ,new int[]{1024,1024});
+            DirectRenderRayHitGBuffer.SetInts("irradianceMapSize" ,new int[]{x
+                ,y});
+            DirectRenderRayHitGBuffer.Dispatch(kernelHandle, irradianceRaysPerProbe / 8 , ProbeAmount / 8 , 1);
+        }
+
         float3x3 GetRandomRayMat()
         {
             float3 dir = new float3(
@@ -205,6 +256,8 @@ namespace MyDDGI
         {
             GenerateRandomRays();
             StartRayQuery();
+            StartDirectRenderRayHitGBuffer();
+            DebugRenderTexture.Instance.SetRenderTexture(m_rayHitColors);
         }
     }
 }
