@@ -111,6 +111,7 @@ namespace MyDDGI
 
         int ProbeAmount;
         private RenderTexture _texture2DArray;
+        public Cubemap SkyCubeMap;
         
 
         private void Awake()
@@ -228,6 +229,7 @@ namespace MyDDGI
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "irradianceMeanMeanSquared", m_meanDistProbes);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "irradianceMap", m_irradianceProbes);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"baseColorMaps" ,_texture2DArray);
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"skyCubeMap" ,SkyCubeMap);
             
             DirectRenderRayHitGBuffer.SetInt("probeSideLength" ,irradianceOctResolution);
             DirectRenderRayHitGBuffer.SetFloat("energyPreservation" ,0.1f);

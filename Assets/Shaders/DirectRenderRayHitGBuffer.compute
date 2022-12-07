@@ -34,6 +34,18 @@ SamplerState samplerirradianceMeanMeanSquared
 };
 
 Texture2D<float3> irradianceMap;
+SamplerState samplerirradianceMap
+{
+
+    Filter   = MIN_MAG_MIP_LINEAR;
+
+    AddressU = Clamp;
+
+    AddressV = Clamp;
+
+};
+TextureCube skyCubeMap;
+SamplerState samplerskyCubeMap;
 
 float pow3(float x) { return x * x * x; }
 
@@ -116,13 +128,19 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     int hitIndex = indexMap[C].x;
     float2 hitUv = uvMap[C].xy;
     
-    if (dot(wsN, wsN) < 0.01 || hitIndex < 0) {
+    if (dot(wsN, wsN) < 0.01) {
         rayHitColors[C] = float3(0,0,0);
         return;
     }
+    
+    
     // View vector
-    float3 w_o = normalize(rayOrigin[C].xyz - wsPosition);
-
+    //float3 w_o = normalize(rayOrigin[C].xyz - wsPosition);
+    float3 w_o = normalize(wsPosition - rayOrigin[C].xyz);
+    if (hitIndex < 0) {
+        rayHitColors[C] = skyCubeMap.SampleLevel(samplerskyCubeMap, w_o, 0);
+        return;
+    }
     // Glossy coefficient in BSDF (this code unpacks
     // G3D::UniversalBSDF's encoding)
     /*float4  F0 = texelFetch(gbuffer_GLOSSY_buffer, C, 0);
@@ -239,7 +257,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         //Irradiance3 probeIrradiance = texture(L[0].irradianceProbeGridbuffer, texCoord).rgb;
         //Irradiance3 probeIrradiance = irradianceMap[itexCoord].rgb;
         
-        Irradiance3 probeIrradiance = irradianceMap.SampleLevel(samplerirradianceMeanMeanSquared, texCoord ,0).xyz;
+        Irradiance3 probeIrradiance = irradianceMap.SampleLevel(samplerirradianceMap, texCoord ,0).rgb;
         
 
         // A tiny bit of light is really visible due to log perception, so
