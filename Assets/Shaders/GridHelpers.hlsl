@@ -112,12 +112,61 @@ struct Ray
     float3 origin;
 };
 
+float pow3(float x) { return x * x * x; }
+
+float square(float x){ return x * x;}
+
+float signNotZero(in float k) {
+    return (k >= 0.0) ? 1.0 : -1.0;
+}
+
+float2 signNotZero(in float2 v) {
+    return float2(signNotZero(v.x), signNotZero(v.y));
+}
+
+float3 octDecode(float2 o) {
+    float3 v = float3(o.x, o.y, 1.0 - abs(o.x) - abs(o.y));
+    if (v.z < 0.0) {
+        v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);
+    }
+    return normalize(v);
+}
+
+float2 octEncode(in float3 v) {
+    float l1norm = abs(v.x) + abs(v.y) + abs(v.z);
+    float2 result = v.xy * (1.0 / l1norm);
+    if (v.z < 0.0) {
+        result = (1.0 - abs(result.yx)) * signNotZero(result.xy);
+    }
+    return result;
+}
+
 
 float distanceSquared(float2 v0, float2 v1) {
     float2 d = v1 - v0;
     return dot(d, d);
 }
 
+float2 textureCoordFromDirection(float3 dir, int probeIndex, int fullTextureWidth, int fullTextureHeight, int probeSideLength) {
+    float2 normalizedOctCoord = octEncode(normalize(dir));
+    float2 normalizedOctCoordZeroOne = (normalizedOctCoord + float2(1.0f,1.0f)) * 0.5f;
+
+    // Length of a probe side, plus one pixel on each edge for the border
+    float probeWithBorderSide = (float)probeSideLength + 2.0f;
+
+    float2 octCoordNormalizedToTextureDimensions = (normalizedOctCoordZeroOne * (float)probeSideLength) / float2((float)fullTextureWidth, (float)fullTextureHeight);
+
+    int probesPerRow = (fullTextureWidth - 2) / (int)probeWithBorderSide;
+
+    // Add (2,2) back to texCoord within larger texture. Compensates for 1 pix 
+    // border around texture and further 1 pix border around top left probe.
+    float2 probeTopLeftPosition = float2((probeIndex % probesPerRow) * probeWithBorderSide,
+        (probeIndex / probesPerRow) * probeWithBorderSide) + float2(2.0f, 2.0f);
+
+    float2 normalizedProbeTopLeftPosition = float2(probeTopLeftPosition) / float2((float)fullTextureWidth, (float)fullTextureHeight);
+
+    return float2(normalizedProbeTopLeftPosition + octCoordNormalizedToTextureDimensions);
+}
 /** 
  \param probeCoords Integer (stored in float) coordinates of the probe on the probe grid 
  */

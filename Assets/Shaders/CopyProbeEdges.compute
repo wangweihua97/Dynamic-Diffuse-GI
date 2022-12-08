@@ -1,0 +1,24 @@
+﻿#pragma kernel CSMain
+int fullTextureWidth;
+int fullTextureHeight;
+int probeSideLength;
+
+//Texture2D<float4> irradianceMap;
+
+const int border = 2;
+
+RWTexture2D<float4> results;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	int2 P = id.xy;
+
+	if (P.x == 0 || P.y == 0 || P.x == (fullTextureWidth - 1) || P.y == (fullTextureHeight - 1)) return;
+
+	if (P.x % (probeSideLength + border) == 0) { results[id.xy] = results[int2(P.x-1, P.y)].rgba; return;}
+	if (P.x % (probeSideLength + border) == 1) { results[id.xy] = results[int2(P.x+1, P.y)].rgba; return;}
+																											
+	if (P.y % (probeSideLength + border) == 0) { results[id.xy] = results[int2(P.x, P.y-1)].rgba; return;}
+	if (P.y % (probeSideLength + border) == 1) { results[id.xy] = results[int2(P.x, P.y+1)].rgba; return;}
+}

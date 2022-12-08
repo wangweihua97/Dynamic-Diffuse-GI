@@ -30,9 +30,9 @@ namespace MyDDGI
     };
     public class DDGI : MonoBehaviour
     {
-        float3          probeDimensions         = new float3(1,1,1);
+        float3          probeDimensions         = new float3(2,1,2);
 
-        int3            probeCounts             = new int3(10, 6, 10);
+        int3            probeCounts             = new int3(20, 6, 20);
 
         /** Side length of one face */
         int             irradianceOctResolution = 8;
@@ -85,6 +85,8 @@ namespace MyDDGI
         bool            showLights = false;
         bool            encloseBounds = false;
         
+        float3 StartPosition = new float3(-10,-0.5f,-10);
+        
         RenderTexture                m_irradianceProbes;
         RenderTexture                m_meanDistProbes;
         
@@ -105,6 +107,9 @@ namespace MyDDGI
         public ComputeShader GenerateRays;
         public ComputeShader RayQuery;
         public ComputeShader DirectRenderRayHitGBuffer;
+        public ComputeShader UpdateIrradianceProbeDepth;
+        public ComputeShader UpdateIrradianceProbeIrradiance;
+        public ComputeShader CopyProbeEdges;
         public List<Texture> Textures;
 
         public IrradianceField L;
@@ -119,7 +124,7 @@ namespace MyDDGI
             ProbeAmount = probeCounts.x * probeCounts.y * probeCounts.z;
             m_rayHitGBuffer = CreatAboutProbesRenderTexture(GraphicsFormat.R8G8B8A8_SRGB);
             m_irradianceProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R8G8B8A8_SRGB);
-            m_meanDistProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R16G16_SFloat);
+            m_meanDistProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
 
             m_irradianceRayOrigins = CreatAboutRayRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
             m_irradianceRayDirections = CreatAboutRayRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
@@ -184,7 +189,7 @@ namespace MyDDGI
         {
             L.probeStep = probeDimensions;
             L.probeCounts = probeCounts;
-            L.probeStartPosition = new float3(-5,-0.5f,-5);
+            L.probeStartPosition = StartPosition;
             m_irradianceFieldBuffer.SetData(new []{L});
         }
 
@@ -232,13 +237,100 @@ namespace MyDDGI
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"skyCubeMap" ,SkyCubeMap);
             
             DirectRenderRayHitGBuffer.SetInt("probeSideLength" ,irradianceOctResolution);
-            DirectRenderRayHitGBuffer.SetFloat("energyPreservation" ,0.1f);
+            DirectRenderRayHitGBuffer.SetFloat("energyPreservation" ,1.0f);
             int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
             int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
             DirectRenderRayHitGBuffer.SetInts("baseColorMapSize" ,new int[]{1024,1024});
             DirectRenderRayHitGBuffer.SetInts("irradianceMapSize" ,new int[]{x
                 ,y});
             DirectRenderRayHitGBuffer.Dispatch(kernelHandle, irradianceRaysPerProbe / 8 , ProbeAmount / 8 , 1);
+        }
+
+        void StartUpdateIrradianceProbeDepth()
+        {
+            int kernelHandle = UpdateIrradianceProbeDepth.FindKernel("CSMain");
+            UpdateIrradianceProbeDepth.SetTexture(kernelHandle, "rayOrigins", m_irradianceRayOrigins);
+            UpdateIrradianceProbeDepth.SetTexture(kernelHandle, "rayDirections", m_irradianceRayDirections);
+            UpdateIrradianceProbeDepth.SetTexture(kernelHandle, "rayHitLocations", m_rayHitPoses);
+            UpdateIrradianceProbeDepth.SetTexture(kernelHandle, "rayHitNormals", m_rayHitNormals);
+            UpdateIrradianceProbeDepth.SetTexture(kernelHandle, "rayHitRadiances", m_rayHitColors);
+            UpdateIrradianceProbeDepth.SetBuffer(kernelHandle ,"L" ,m_irradianceFieldBuffer);
+            
+            
+            int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
+            
+            UpdateIrradianceProbeDepth.SetInt("fullTextureWidth" ,x);
+            UpdateIrradianceProbeDepth.SetInt("fullTextureHeight" ,y);
+            UpdateIrradianceProbeDepth.SetInt("probeSideLength" ,irradianceOctResolution);
+            
+            UpdateIrradianceProbeDepth.SetFloat("maxDistance" ,10.0f);
+            UpdateIrradianceProbeDepth.SetFloat("hysteresis" ,0.98f);
+            UpdateIrradianceProbeDepth.SetFloat("depthSharpness" ,50.0f);
+            
+            UpdateIrradianceProbeDepth.SetTexture(kernelHandle ,"results" ,m_meanDistProbes);
+            
+            
+            
+            UpdateIrradianceProbeDepth.Dispatch(kernelHandle, x / 8 , y / 8 , 1);
+            
+        }
+        
+        void StartUpdateIrradianceProbeIrradiance()
+        {
+            int kernelHandle = UpdateIrradianceProbeIrradiance.FindKernel("CSMain");
+            UpdateIrradianceProbeIrradiance.SetTexture(kernelHandle, "rayOrigins", m_irradianceRayOrigins);
+            UpdateIrradianceProbeIrradiance.SetTexture(kernelHandle, "rayDirections", m_irradianceRayDirections);
+            UpdateIrradianceProbeIrradiance.SetTexture(kernelHandle, "rayHitLocations", m_rayHitPoses);
+            UpdateIrradianceProbeIrradiance.SetTexture(kernelHandle, "rayHitNormals", m_rayHitNormals);
+            UpdateIrradianceProbeIrradiance.SetTexture(kernelHandle, "rayHitRadiances", m_rayHitColors);
+            UpdateIrradianceProbeIrradiance.SetBuffer(kernelHandle ,"L" ,m_irradianceFieldBuffer);
+            
+            
+            int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
+            
+            UpdateIrradianceProbeIrradiance.SetInt("fullTextureWidth" ,x);
+            UpdateIrradianceProbeIrradiance.SetInt("fullTextureHeight" ,y);
+            UpdateIrradianceProbeIrradiance.SetInt("probeSideLength" ,irradianceOctResolution);
+            
+            UpdateIrradianceProbeIrradiance.SetFloat("maxDistance" ,10.0f);
+            UpdateIrradianceProbeIrradiance.SetFloat("hysteresis" ,0.98f);
+            UpdateIrradianceProbeIrradiance.SetFloat("depthSharpness" ,50.0f);
+            UpdateIrradianceProbeIrradiance.SetTexture(kernelHandle ,"results" ,m_irradianceProbes);
+            
+            UpdateIrradianceProbeIrradiance.Dispatch(kernelHandle, x / 8 , y / 8 , 1);
+        }
+        
+        void StartCopyProbeEdges()
+        {
+            int kernelHandle = CopyProbeEdges.FindKernel("CSMain");
+            int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
+            CopyProbeEdges.SetInt("fullTextureWidth" ,x);
+            CopyProbeEdges.SetInt("fullTextureHeight" ,y);
+            CopyProbeEdges.SetInt("probeSideLength" ,irradianceOctResolution);
+            CopyProbeEdges.SetTexture(kernelHandle ,"results" ,m_irradianceProbes);
+            CopyProbeEdges.Dispatch(kernelHandle, x / 8 , y / 8 , 1);
+            
+            CopyProbeEdges.SetTexture(kernelHandle ,"results" ,m_meanDistProbes);
+            CopyProbeEdges.Dispatch(kernelHandle, x / 8 , y / 8 , 1);
+            
+        }
+
+        void SetGlocalShaderVariables()
+        {
+            Shader.SetGlobalInt("probeSideLength" ,irradianceOctResolution);
+            Shader.SetGlobalFloat("energyPreservation" ,1.0f);
+            int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
+            Shader.SetGlobalInt("baseColorMapSize_x" ,1024);
+            Shader.SetGlobalInt("baseColorMapSize_y" ,1024);
+            Shader.SetGlobalInt("irradianceMapSize_x" ,x);
+            Shader.SetGlobalInt("irradianceMapSize_y" ,y);
+            
+            Shader.SetGlobalTexture("irradianceMap" ,m_irradianceProbes);
+            Shader.SetGlobalTexture("irradianceMeanMeanSquared" ,m_meanDistProbes);
         }
 
         float3x3 GetRandomRayMat()
@@ -259,7 +351,12 @@ namespace MyDDGI
             GenerateRandomRays();
             StartRayQuery();
             StartDirectRenderRayHitGBuffer();
-            DebugRenderTexture.Instance.SetRenderTexture(m_rayHitColors);
+            StartUpdateIrradianceProbeDepth();
+            StartUpdateIrradianceProbeIrradiance();
+            StartCopyProbeEdges();
+            SetGlocalShaderVariables();
+            DebugRenderTexture.Instance.SetRayHitColorRenderTexture(m_rayHitColors);
+            DebugRenderTexture.Instance.SetProbesIrradianceRenderTexture(m_irradianceProbes);
         }
     }
 }

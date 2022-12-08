@@ -1,0 +1,92 @@
+﻿#pragma kernel CSMain
+#include "GridHelpers.hlsl"
+#define RAYS_PER_PROBE 64
+
+Texture2D<float4>                 rayDirections;
+Texture2D<float3>                 rayHitLocations;
+Texture2D<float3>                 rayHitRadiances;
+Texture2D<float3>                 rayHitNormals;
+Texture2D<float4>                 rayOrigins;
+
+int                       fullTextureWidth;
+int                       fullTextureHeight;
+int                       probeSideLength;
+float                     maxDistance;
+
+StructuredBuffer<IrradianceField> L;
+
+float                     hysteresis;
+float                     depthSharpness;
+float                     epsilon = 1e-6;
+
+// We make two draw calls to render the irradiance and
+// depth model textures because the two textures will be
+// different sizes.
+//
+// This is either irradiance or depth
+RWTexture2D<float4> results;
+
+int probeID(float2 texelXY) {
+    int probeWithBorderSide = probeSideLength + 2;
+    int probesPerSide = (fullTextureWidth - 2) / probeWithBorderSide;
+    return int(texelXY.x / probeWithBorderSide) + probesPerSide * int(texelXY.y / probeWithBorderSide);
+}
+
+// Compute normalized oct coord, mapping top left of top left pixel to (-1,-1)
+float2 normalizedOctCoord(int2 fragCoord) {
+    int probeWithBorderSide = probeSideLength + 2;
+
+    float2 octFragCoord = int2((fragCoord.x - 2) % probeWithBorderSide, (fragCoord.y - 2) % probeWithBorderSide);
+    // Add back the half pixel to get pixel center normalized coordinates
+    return (float2(octFragCoord) + float2(0.5f,0.5f))*(2.0f / float(probeSideLength)) - float2(1.0f, 1.0f);
+}
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+
+    int relativeProbeID = probeID(id.xy);
+    float4 result = float4(0.0f,0.0f,0.0f,0.0f);;
+    if (relativeProbeID == -1) {
+        result = float4(0.0f,0.0f,0.0f,0.0f);
+        results[id.xy] = result;
+        return;
+    }
+
+    const float energyConservation = 0.95;
+
+    // For each ray
+	for (int r = 0; r < RAYS_PER_PROBE; ++r) {
+		int2 C = int2(r, relativeProbeID);
+
+		float3 rayDirection    = rayDirections[C].xyz;
+        float3  rayHitRadiance  = rayHitRadiances[C].xyz * energyConservation;
+		float3  rayHitLocation  = rayHitLocations[C].xyz;
+
+        float3 probeLocation = rayOrigins[C].xyz;
+        // Will be zero on a miss
+		float3 rayHitNormal    = rayHitNormals[C].xyz;
+
+        rayHitLocation += rayHitNormal * 0.01f;
+
+		float rayProbeDistance = min(maxDistance, length(probeLocation - rayHitLocation));
+        
+        // Detect misses and force depth
+		if (dot(rayHitNormal, rayHitNormal) < epsilon) {
+            rayProbeDistance = maxDistance;
+        }
+
+        float3 texelDirection = octDecode(normalizedOctCoord(int2(id.xy)));
+
+        float weight = max(0.0, dot(texelDirection, rayDirection));
+        if (weight >= 0.001) {
+            result += float4(rayHitRadiance * weight, weight);
+        }
+		
+	}
+
+    if (result.w > epsilon) {
+        result.xyz /= result.w;
+        result.w = 1.0f - hysteresis;
+    } // if nonzero
+    results[id.xy] = 0.97 *results[id.xy] + 0.03 * result;
+}

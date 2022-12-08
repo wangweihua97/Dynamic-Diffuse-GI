@@ -25,6 +25,11 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     {
         pos = rayStart + rayDir * 1000 * rayScale;
     }
+    
+    if(index == -1)
+    {
+        pos = rayStart + rayDir * 1000 * rayScale;
+    }
     posMap[id.xy] = pos;
     normalMap[id.xy] = normal;
     indexMap[id.xy] = index;

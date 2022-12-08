@@ -5,16 +5,21 @@ public class DebugRenderTexture : MonoBehaviour
 {
     public static DebugRenderTexture Instance;
 
-    private Material _material;
+    public Material RayHitColorMaterial;
+    public Material ProbesIrradianceMaterial;
     private void Awake()
     {
         Instance = this;
-        _material = GetComponent<MeshRenderer>().sharedMaterial;
     }
 
-    public void SetRenderTexture(RenderTexture rt)
+    public void SetRayHitColorRenderTexture(RenderTexture rt)
     {
-        _material.mainTexture = rt;
+        RayHitColorMaterial.mainTexture = rt;
+    }
+    
+    public void SetProbesIrradianceRenderTexture(RenderTexture rt)
+    {
+        ProbesIrradianceMaterial.mainTexture = rt;
     }
     
 }
