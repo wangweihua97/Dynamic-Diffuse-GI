@@ -47,7 +47,6 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     int relativeProbeID = probeID(id.xy);
     float4 result = float4(0.0f,0.0f,0.0f,0.0f);;
     if (relativeProbeID == -1) {
-        result = float4(0.0f,0.0f,0.0f,0.0f);
         results[id.xy] = result;
         return;
     }
@@ -58,7 +57,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 	for (int r = 0; r < RAYS_PER_PROBE; ++r) {
 		int2 C = int2(r, relativeProbeID);
 
-		float3 rayDirection    = rayDirections[C].xyz;
+		float3 rayDirection     = rayDirections[C].xyz;
         float3  rayHitRadiance  = rayHitRadiances[C].xyz * energyConservation;
 		float3  rayHitLocation  = rayHitLocations[C].xyz;
 

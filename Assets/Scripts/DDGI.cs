@@ -30,9 +30,9 @@ namespace MyDDGI
     };
     public class DDGI : MonoBehaviour
     {
-        float3          probeDimensions         = new float3(2,1,2);
+        float3          probeDimensions         = new float3(1,1,1);
 
-        int3            probeCounts             = new int3(20, 6, 20);
+        int3            probeCounts             = new int3(40, 7, 30);
 
         /** Side length of one face */
         int             irradianceOctResolution = 8;
@@ -85,7 +85,7 @@ namespace MyDDGI
         bool            showLights = false;
         bool            encloseBounds = false;
         
-        float3 StartPosition = new float3(-10,-0.5f,-10);
+        float3 StartPosition = new float3(-20,-0.5f,-10);
         
         RenderTexture                m_irradianceProbes;
         RenderTexture                m_meanDistProbes;
@@ -187,9 +187,15 @@ namespace MyDDGI
 
         void CreatIrradianceField()
         {
+            int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
             L.probeStep = probeDimensions;
             L.probeCounts = probeCounts;
             L.probeStartPosition = StartPosition;
+            L.irradianceTextureWidth = x;
+            L.irradianceTextureHeight = y;
+            L.irradianceProbeSideLength = irradianceOctResolution;
+            L.normalBias = 0.25f;
             m_irradianceFieldBuffer.SetData(new []{L});
         }
 
@@ -294,7 +300,7 @@ namespace MyDDGI
             UpdateIrradianceProbeIrradiance.SetInt("fullTextureHeight" ,y);
             UpdateIrradianceProbeIrradiance.SetInt("probeSideLength" ,irradianceOctResolution);
             
-            UpdateIrradianceProbeIrradiance.SetFloat("maxDistance" ,10.0f);
+            UpdateIrradianceProbeIrradiance.SetFloat("maxDistance" ,100.0f);
             UpdateIrradianceProbeIrradiance.SetFloat("hysteresis" ,0.98f);
             UpdateIrradianceProbeIrradiance.SetFloat("depthSharpness" ,50.0f);
             UpdateIrradianceProbeIrradiance.SetTexture(kernelHandle ,"results" ,m_irradianceProbes);
@@ -331,6 +337,7 @@ namespace MyDDGI
             
             Shader.SetGlobalTexture("irradianceMap" ,m_irradianceProbes);
             Shader.SetGlobalTexture("irradianceMeanMeanSquared" ,m_meanDistProbes);
+            Shader.SetGlobalBuffer("L" ,m_irradianceFieldBuffer);
         }
 
         float3x3 GetRandomRayMat()
@@ -340,9 +347,8 @@ namespace MyDDGI
                 2.0f * Random.Range(0.0f,1.0f) - 1.0f,
                 2.0f * Random.Range(0.0f,1.0f) - 1.0f
             );
-
             float epsilon = Random.Range(0.0f, 360.0f);
-            float3x3 result = float3x3.AxisAngle(dir ,epsilon);
+            float3x3 result = float3x3.AxisAngle(math.normalize(dir) ,epsilon);
             return result;
         }
 

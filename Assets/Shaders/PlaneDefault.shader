@@ -82,6 +82,7 @@ Shader "Unlit/PlaneDefault"
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
                 half4 baseMap = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv);
+                return baseMap;
                 float4 SHADOW_COORDS = TransformWorldToShadowCoord(IN.positionWS);
                 Light light = GetMainLight(SHADOW_COORDS);
                 half3 n = normalize(IN.normalWS);

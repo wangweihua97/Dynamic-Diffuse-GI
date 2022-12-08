@@ -38,13 +38,14 @@ Shader "Unlit/DDGI"
         {
             Tags{"LightMode"="UniversalForward"}//这个Pass最终会输出到颜色缓冲里
             
-            cull Off
+            cull back
 
             HLSLPROGRAM //CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
+            #define LINEAR_BLENDING 1
 
             struct Attributes
             {
@@ -105,7 +106,6 @@ Shader "Unlit/DDGI"
                 float3 baseProbePos = gridCoordToPosition(L[0], gridCoord);
                 Irradiance3 sumIrradiance = Irradiance3(0,0,0);
                 float sumWeight = 0.0;
-            
                 // alpha is how far from the floor(currentVertex) position. on [0, 1] for each axis.
                 float3 alpha = clamp((IN.positionWS - baseProbePos) / L[0].probeStep, float3(0,0,0), float3(1,1,1));
             

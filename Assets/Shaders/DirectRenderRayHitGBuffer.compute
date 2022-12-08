@@ -3,6 +3,7 @@
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 #include "GridHelpers.hlsl"
 #define pi 3.1415926535
+#define LINEAR_BLENDING 1
 
 int probeSideLength;
 float energyPreservation;
@@ -61,7 +62,7 @@ float3 BlinnPhongLighting(float3 posWS ,float3 normalWS ,int index ,float2 uv ,f
     int2 iuv = int2(baseColorMapSize * uv);
     //float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,index)].xyz;
     float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,0)].xyz;
-    half3 diffuse = nl * baseCorlor* light.color;
+    half3 diffuse = nl * half3(1,1,1)* light.color;
     half3 specular = atten * light.color * pow(nh ,16);
     return diffuse + specular;
 }
@@ -73,7 +74,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     // Screen-space point being shaded
     uint2 C = id.xy;
 
-    float3 wsN = normalMap[C].xyz;
+    float3 wsN = -normalMap[C].xyz;
     float3 wsPosition = posMap[C].xyz;
     int hitIndex = indexMap[C].x;
     float2 hitUv = uvMap[C].xy;
@@ -179,7 +180,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             float distToProbe = length(probeToPoint);
             //int2 itexCoord = int2(irradianceMapSize * texCoord);
             //float2 temp = irradianceMeanMeanSquared[itexCoord].xy;
-            float2 temp = irradianceMeanMeanSquared.SampleLevel(samplerirradianceMeanMeanSquared, texCoord ,0).rg;
+            float2 temp = irradianceMeanMeanSquared.SampleLevel(samplerirradianceMeanMeanSquared, texCoord.yx ,0).rg;
             float mean = temp.x;
             float variance = abs(square(temp.x) - temp.y);
 
@@ -207,7 +208,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         //Irradiance3 probeIrradiance = texture(L[0].irradianceProbeGridbuffer, texCoord).rgb;
         //Irradiance3 probeIrradiance = irradianceMap[itexCoord].rgb;
         
-        Irradiance3 probeIrradiance = irradianceMap.SampleLevel(samplerirradianceMap, texCoord ,0).rgb;
+        Irradiance3 probeIrradiance = irradianceMap.SampleLevel(samplerirradianceMap, texCoord.yx ,0).rgb;
         
 
         // A tiny bit of light is really visible due to log perception, so
