@@ -13,5 +13,7 @@ namespace ComputeShaderBvhMeshHit
         public Vector2 uv0;
         public Vector2 uv1;
         public Vector2 uv2;
+        
+        public int MaterialIndex;
     }
 }

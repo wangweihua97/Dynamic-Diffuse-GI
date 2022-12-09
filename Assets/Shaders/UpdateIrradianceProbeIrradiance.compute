@@ -47,7 +47,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     int relativeProbeID = probeID(id.xy);
     float4 result = float4(0.0f,0.0f,0.0f,0.0f);;
     if (relativeProbeID == -1) {
-        results[id.xy] = result;
+        results[id.xy] = 0.97 *results[id.xy] + 0.03 * result;
         return;
     }
 

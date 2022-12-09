@@ -32,7 +32,7 @@ namespace MyDDGI
     {
         float3          probeDimensions         = new float3(1,1,1);
 
-        int3            probeCounts             = new int3(40, 7, 30);
+        int3            probeCounts             = new int3(30, 7, 20);
 
         /** Side length of one face */
         int             irradianceOctResolution = 8;
@@ -85,7 +85,7 @@ namespace MyDDGI
         bool            showLights = false;
         bool            encloseBounds = false;
         
-        float3 StartPosition = new float3(-20,-0.5f,-10);
+        float3 StartPosition = new float3(-15,-0.5f,-10);
         
         RenderTexture                m_irradianceProbes;
         RenderTexture                m_meanDistProbes;
@@ -115,16 +115,18 @@ namespace MyDDGI
         public IrradianceField L;
 
         int ProbeAmount;
-        private RenderTexture _texture2DArray;
         public Cubemap SkyCubeMap;
         
 
         private void Awake()
         {
             ProbeAmount = probeCounts.x * probeCounts.y * probeCounts.z;
-            m_rayHitGBuffer = CreatAboutProbesRenderTexture(GraphicsFormat.R8G8B8A8_SRGB);
-            m_irradianceProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R8G8B8A8_SRGB);
+            m_rayHitGBuffer = CreatAboutProbesRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
+            m_rayHitGBuffer.filterMode = FilterMode.Bilinear;
+            m_irradianceProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
+            m_irradianceProbes.filterMode = FilterMode.Bilinear;
             m_meanDistProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
+            m_meanDistProbes.filterMode = FilterMode.Bilinear;
 
             m_irradianceRayOrigins = CreatAboutRayRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
             m_irradianceRayDirections = CreatAboutRayRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
@@ -134,11 +136,11 @@ namespace MyDDGI
             m_rayHitUvs = CreatAboutRayRenderTexture(GraphicsFormat.R16G16_UNorm);
             m_rayHitIndexs = CreatAboutRayRenderTexture(GraphicsFormat.R16_SInt);
             
-            m_rayHitColors = CreatAboutRayRenderTexture(GraphicsFormat.R8G8B8A8_SRGB);
+            m_rayHitColors = CreatAboutRayRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
+            m_rayHitColors.filterMode = FilterMode.Bilinear;
 
             CreatGraphicsBuffer();
             CreatIrradianceField();
-            CreatTexture2DArray();
         }
         
         RenderTexture CreatAboutRayRenderTexture(GraphicsFormat graphicsFormat)
@@ -159,26 +161,6 @@ namespace MyDDGI
             return renderTexture;
         }
 
-        void CreatTexture2DArray()
-        {
-            RenderTextureDescriptor d = new RenderTextureDescriptor(1024, 1024, RenderTextureFormat.ARGB32);
-            d.dimension = TextureDimension.Tex2DArray;
-            d.volumeDepth = Textures.Count; // We will have 2 slices (I.E. 2 textures) in our texture array.
-
-            _texture2DArray = new RenderTexture(d);
-            _texture2DArray.Create();
-            _texture2DArray.name = "texture2DArray";
-
-            for (int i = 0; i <Textures.Count; i++)
-            {
-                var pauseRenderTexture = RenderTexture.GetTemporary(Textures[i].width, Textures[i].height);
-                Graphics.Blit(Textures[i], pauseRenderTexture);
-                Graphics.CopyTexture(pauseRenderTexture, 0,
-                    _texture2DArray, i);
-            }
-            
-        }
-
         void CreatGraphicsBuffer()
         {
             m_randomDirBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 1, Marshal.SizeOf<float3x3>());
@@ -195,7 +177,7 @@ namespace MyDDGI
             L.irradianceTextureWidth = x;
             L.irradianceTextureHeight = y;
             L.irradianceProbeSideLength = irradianceOctResolution;
-            L.normalBias = 0.25f;
+            L.normalBias = normalBias;
             m_irradianceFieldBuffer.SetData(new []{L});
         }
 
@@ -239,7 +221,7 @@ namespace MyDDGI
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "rayHitColors", m_rayHitColors);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "irradianceMeanMeanSquared", m_meanDistProbes);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "irradianceMap", m_irradianceProbes);
-            DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"baseColorMaps" ,_texture2DArray);
+            DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"baseColorMaps" ,Scene.Instance.BaseColorTextureArray);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"skyCubeMap" ,SkyCubeMap);
             
             DirectRenderRayHitGBuffer.SetInt("probeSideLength" ,irradianceOctResolution);
@@ -271,8 +253,8 @@ namespace MyDDGI
             UpdateIrradianceProbeDepth.SetInt("probeSideLength" ,irradianceOctResolution);
             
             UpdateIrradianceProbeDepth.SetFloat("maxDistance" ,10.0f);
-            UpdateIrradianceProbeDepth.SetFloat("hysteresis" ,0.98f);
-            UpdateIrradianceProbeDepth.SetFloat("depthSharpness" ,50.0f);
+            UpdateIrradianceProbeDepth.SetFloat("hysteresis" ,hysteresis);
+            UpdateIrradianceProbeDepth.SetFloat("depthSharpness" ,depthSharpness);
             
             UpdateIrradianceProbeDepth.SetTexture(kernelHandle ,"results" ,m_meanDistProbes);
             
@@ -300,7 +282,7 @@ namespace MyDDGI
             UpdateIrradianceProbeIrradiance.SetInt("fullTextureHeight" ,y);
             UpdateIrradianceProbeIrradiance.SetInt("probeSideLength" ,irradianceOctResolution);
             
-            UpdateIrradianceProbeIrradiance.SetFloat("maxDistance" ,100.0f);
+            UpdateIrradianceProbeIrradiance.SetFloat("maxDistance" ,10.0f);
             UpdateIrradianceProbeIrradiance.SetFloat("hysteresis" ,0.98f);
             UpdateIrradianceProbeIrradiance.SetFloat("depthSharpness" ,50.0f);
             UpdateIrradianceProbeIrradiance.SetTexture(kernelHandle ,"results" ,m_irradianceProbes);

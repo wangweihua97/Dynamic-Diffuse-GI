@@ -60,11 +60,11 @@ float3 BlinnPhongLighting(float3 posWS ,float3 normalWS ,int index ,float2 uv ,f
     
     half atten = light.shadowAttenuation;
     int2 iuv = int2(baseColorMapSize * uv);
-    //float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,index)].xyz;
-    float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,0)].xyz;
-    half3 diffuse = nl * half3(1,1,1)* light.color;
+    float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,index)].xyz;
+    //float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,0)].xyz;
+    half3 diffuse = baseCorlor * nl * half3(1,1,1)* light.color;
     half3 specular = atten * light.color * pow(nh ,16);
-    return diffuse + specular;
+    return saturate(diffuse + specular);
 }
 
 
@@ -74,7 +74,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     // Screen-space point being shaded
     uint2 C = id.xy;
 
-    float3 wsN = -normalMap[C].xyz;
+    float3 wsN = normalMap[C].xyz;
     float3 wsPosition = posMap[C].xyz;
     int hitIndex = indexMap[C].x;
     float2 hitUv = uvMap[C].xy;

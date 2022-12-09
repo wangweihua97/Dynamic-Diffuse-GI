@@ -25,6 +25,7 @@ struct BvhTriangle
     float2 uv0;
     float2 uv1;
     float2 uv2;
+    int MaterialIndex;
 };
 
 struct GoInfo
@@ -260,12 +261,12 @@ bool TraverseBvh(float3 origin, float3 rayStep, out float rayScale, out float3 n
     return rayScale != BVH_FLT_MAX;
 }
 
-bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float rayScale, out float3 normal ,out float2 uv )
+bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float rayScale, out float3 normal ,out float2 uv ,out int matIndex)
 {
     int stack[BVH_STACK_SIZE];
     int stackIdx = 0;
     stack[stackIdx++] = 0;
-
+    matIndex = -1;
     rayScale = BVH_FLT_MAX;
     origin = origin - goInfo.Pos;
 
@@ -301,6 +302,8 @@ bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float r
                             normal = tri.normal;
                             normal = dot(normal ,rayStep) > 0 ? normal : -normal;
                             GetHitUV(tri ,origin + rayStep * rayScale ,uv);
+                            matIndex = tri.MaterialIndex;
+                            
                         }
                     }
                 }
@@ -311,9 +314,9 @@ bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float r
     return rayScale != BVH_FLT_MAX;
 }
 
-bool TraverseBvh_(float3 origin, float3 rayStep, out float rayScale, out float3 normal ,out float2 uv ,out int index)
+bool TraverseBvh_(float3 origin, float3 rayStep, out float rayScale, out float3 normal ,out float2 uv ,out int matId)
 {   
-    index = -1;
+    matId = -1;
     uv = float2(0,0);
     rayScale = BVH_FLT_MAX;
     uint number = 0;
@@ -362,8 +365,8 @@ bool TraverseBvh_(float3 origin, float3 rayStep, out float rayScale, out float3 
         float temp_rayScale = BVH_FLT_MAX;
         float3 temp_normal;
         float2 temp_uv;
-        index= 1;
-        if(TraverseBvh_GoInfo(goInfoBuffer[indexs[i]],origin,rayStep,temp_rayScale, temp_normal,temp_uv))
+        int temp_matIndex;
+        if(TraverseBvh_GoInfo(goInfoBuffer[indexs[i]],origin,rayStep,temp_rayScale, temp_normal,temp_uv,temp_matIndex))
         //if(TraverseBvh(origin,rayStep,temp_rayScale, temp_normal))
         {
             
@@ -372,8 +375,7 @@ bool TraverseBvh_(float3 origin, float3 rayStep, out float rayScale, out float3 
                 rayScale = temp_rayScale;
                 normal = temp_normal;
                 uv = temp_uv;
-                //index = indexs[i];
-                
+                matId = temp_matIndex;
             }
         }
     }

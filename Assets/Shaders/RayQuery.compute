@@ -25,10 +25,6 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     {
         pos = rayStart + rayDir * 1000 * rayScale;
     }
-    else
-    {
-        index = -1;
-    }
     
     if(index == -1)
     {

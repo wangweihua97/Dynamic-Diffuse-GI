@@ -44,39 +44,46 @@ namespace ComputeShaderBvhMeshHit
         static List<Triangle> CreateTriangles(GameObject rootMeshObject)
         {
             var meshFilters = rootMeshObject.GetComponentsInChildren<MeshFilter>();
-
-            return meshFilters.SelectMany(mf =>
+            List<Triangle> triangleList = new List<Triangle>();
+            foreach (var mf in meshFilters)
             {
                 var mesh = mf.sharedMesh;
-                var triangles = mesh.triangles;
-
+                
                 var trans = mf.transform;
                 var worldVertices = mesh.vertices.Select(vtx => trans.TransformPoint(vtx)).ToList();
-
-                return Enumerable.Range(0, triangles.Length / 3).Select(i =>
+                for (int index = 0; index < mesh.subMeshCount; index++)
                 {
-                    var pos0 = worldVertices[triangles[i * 3 + 0]];
-                    var pos1 = worldVertices[triangles[i * 3 + 1]];
-                    var pos2 = worldVertices[triangles[i * 3 + 2]];
-
-                    var uv0 = mesh.uv[triangles[i * 3 + 0]];
-                    var uv1 = mesh.uv[triangles[i * 3 + 1]];
-                    var uv2 = mesh.uv[triangles[i * 3 + 2]];
-
-                    var normal = -Vector3.Cross(pos0 - pos1, pos2 - pos1).normalized;
-
-                    return new Triangle()
+                    var triangles = mesh.GetIndices(index);
+                    triangleList.AddRange(Enumerable.Range(0, triangles.Length / 3).Select(i =>
                     {
-                        pos0 = pos0,
-                        pos1 = pos1,
-                        pos2 = pos2,
-                        normal = normal,
-                        uv0 = uv0,
-                        uv1 = uv1,
-                        uv2 = uv2
-                    };
-                });
-            }).ToList();
+                        var pos0 = worldVertices[triangles[i * 3 + 0]];
+                        var pos1 = worldVertices[triangles[i * 3 + 1]];
+                        var pos2 = worldVertices[triangles[i * 3 + 2]];
+
+                        var uv0 = mesh.uv[triangles[i * 3 + 0]];
+                        var uv1 = mesh.uv[triangles[i * 3 + 1]];
+                        var uv2 = mesh.uv[triangles[i * 3 + 2]];
+
+                        var normal = -Vector3.Cross(pos0 - pos1, pos2 - pos1).normalized;
+
+                        return new Triangle()
+                        {
+                            pos0 = pos0,
+                            pos1 = pos1,
+                            pos2 = pos2,
+                            normal = normal,
+                            uv0 = uv0,
+                            uv1 = uv1,
+                            uv2 = uv2,
+                            MaterialIndex = index
+                        };
+                    }));
+                }
+                
+                
+            }
+
+            return triangleList;
         }
 
 
