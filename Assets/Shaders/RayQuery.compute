@@ -8,7 +8,7 @@ Texture2D<float4> rayDirection;
 RWTexture2D<float3> posMap;
 RWTexture2D<float3> normalMap;
 RWTexture2D<float2> uvMap;
-RWTexture2D<int> indexMap;
+RWTexture2D<float> indexMap;
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
@@ -28,10 +28,10 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     
     if(index == -1)
     {
-        pos = rayStart + rayDir;
+        pos = rayStart + 1000 * rayDir;
     }
     posMap[id.xy] = pos;
     normalMap[id.xy] = normal;
-    indexMap[id.xy] = index;
+    indexMap[id.xy] = float(index);
     uvMap[id.xy] = uv;
 }

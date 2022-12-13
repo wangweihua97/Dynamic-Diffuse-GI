@@ -77,14 +77,14 @@ inline bool LineTriangleIntersection(BvhTriangle tri, float3 origin, float3 rayS
     rayScale = BVH_FLT_MAX;
 
     float3 normal = tri.normal;
-    float dirDot = dot(normal, rayStep);
-    if ( dirDot > 0 ) return false;
+    /*float dirDot = dot(normal, rayStep);
+    if ( dirDot > 0 ) return false;*/
 
     float3 origin_from_pos0 = origin - tri.pos0;
-    if(dot(origin_from_pos0, normal) < 0 ) return false;
+    //if(dot(origin_from_pos0, normal) < 0 ) return false;
 
     float3 rayStep_end_from_pos0 = origin_from_pos0 + rayStep;
-    if(dot(rayStep_end_from_pos0, normal) > 0 ) return false;
+    //if(dot(rayStep_end_from_pos0, normal) > 0 ) return false;
 
     float3 edge0 = tri.pos1 - tri.pos0;
     float3 edge1 = tri.pos2 - tri.pos0;
@@ -92,7 +92,7 @@ inline bool LineTriangleIntersection(BvhTriangle tri, float3 origin, float3 rayS
     const float float_epsilon = 0.001;
 
     float d = determinant(edge0, edge1, -rayStep);
-    if ( d> float_epsilon)
+    if ( d> float_epsilon || d < -float_epsilon )
     {
         float dInv = 1.0 / d;
         float u = determinant(origin_from_pos0, edge1, -rayStep) * dInv;
@@ -266,7 +266,6 @@ bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float r
     int stack[BVH_STACK_SIZE];
     int stackIdx = 0;
     stack[stackIdx++] = 0;
-    matIndex = -1;
     rayScale = BVH_FLT_MAX;
     origin = origin - goInfo.Pos;
 
@@ -300,7 +299,7 @@ bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float r
                         {
                             rayScale = tmpRayScale;
                             normal = tri.normal;
-                            normal = dot(normal ,rayStep) > 0 ? normal : -normal;
+                            normal = dot(normal ,rayStep) > 0 ? -normal : normal;
                             GetHitUV(tri ,origin + rayStep * rayScale ,uv);
                             matIndex = tri.MaterialIndex;
                             
@@ -321,53 +320,23 @@ bool TraverseBvh_(float3 origin, float3 rayStep, out float rayScale, out float3 
     rayScale = BVH_FLT_MAX;
     uint number = 0;
     uint stride = 0;
+    
     goInfoBuffer.GetDimensions(number, stride);
     
-    int count = 0;
-    int indexs[999];
-    int times[999];
-    
-    for(int i = 0; i < number; i++)
+    for(int i  = 0; i < number;i++)
     {
-       float tNear;
-       if(LineAABBIntersection_WithOut_tNear(origin, rayStep, goInfoBuffer[i] ,tNear))
-       {
-           indexs[count] = i;
-           times[count] = tNear;
-           count++;
-       }
-    }
-    
-    if(count == 0)
-        return false;
-    
-    for(int i = 0; i < count - 1 ;i++)
-    {
-        for(int j = 0; j<=i ;j++)
+        //if(rayScale < times[i])
+            //break;
+        float tNear;
+        if(!LineAABBIntersection_WithOut_tNear(origin, rayStep, goInfoBuffer[i] ,tNear))
         {
-             if(times[j] > times[j + 1])
-             {
-                 float temp_time = times[j];
-                 int temp_index = indexs[j];
-                 
-                 times[j] = times[j + 1];
-                 times[j + 1] = temp_time;
-                 
-                 indexs[j] = indexs[j + 1];
-                 indexs[j + 1] = temp_index;
-             }
+           continue;
         }
-    }
-    for(int i  = 0; i < count;i++)
-    {
-        if(rayScale < times[i])
-            break;
         float temp_rayScale = BVH_FLT_MAX;
         float3 temp_normal;
         float2 temp_uv;
         int temp_matIndex;
-        if(TraverseBvh_GoInfo(goInfoBuffer[indexs[i]],origin,rayStep,temp_rayScale, temp_normal,temp_uv,temp_matIndex))
-        //if(TraverseBvh(origin,rayStep,temp_rayScale, temp_normal))
+        if(TraverseBvh_GoInfo(goInfoBuffer[i],origin,rayStep,temp_rayScale, temp_normal,temp_uv,temp_matIndex))
         {
             
             if(temp_rayScale < rayScale)

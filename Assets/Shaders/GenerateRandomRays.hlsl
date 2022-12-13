@@ -91,5 +91,5 @@ void main() {
     const float rayMinDistance = 0.08;
 
     rayOrigin = float4(probeLocation(probeID), rayMinDistance);
-    rayDirection= float4(randomOrientation * sphericalFibonacci(rayID, RAYS_PER_PROBE), inf);
+    rayDirection= float4(normalize(randomOrientation * sphericalFibonacci(rayID, RAYS_PER_PROBE)), inf);
 }

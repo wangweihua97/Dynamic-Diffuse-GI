@@ -30,6 +30,8 @@ namespace MyDDGI
     };
     public class DDGI : MonoBehaviour
     {
+        const float recursiveEnergyPreservation = 0.85f;
+        
         float3          probeDimensions         = new float3(1,1,1);
 
         int3            probeCounts             = new int3(30, 7, 20);
@@ -121,11 +123,14 @@ namespace MyDDGI
         private void Awake()
         {
             ProbeAmount = probeCounts.x * probeCounts.y * probeCounts.z;
-            m_rayHitGBuffer = CreatAboutProbesRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
-            m_rayHitGBuffer.filterMode = FilterMode.Bilinear;
             m_irradianceProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
             m_irradianceProbes.filterMode = FilterMode.Bilinear;
-            m_meanDistProbes = CreatAboutProbesRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
+            
+            int dx = (depthOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int dy = (depthOctResolution + 2) * probeCounts.z + 2;
+            m_meanDistProbes = new RenderTexture(dx ,dy,GraphicsFormat.R16G16B16A16_SFloat,GraphicsFormat.None);
+            m_meanDistProbes.enableRandomWrite = true;
+            m_meanDistProbes.Create();
             m_meanDistProbes.filterMode = FilterMode.Bilinear;
 
             m_irradianceRayOrigins = CreatAboutRayRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
@@ -134,7 +139,7 @@ namespace MyDDGI
             m_rayHitPoses = CreatAboutRayRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
             m_rayHitNormals = CreatAboutRayRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
             m_rayHitUvs = CreatAboutRayRenderTexture(GraphicsFormat.R16G16_UNorm);
-            m_rayHitIndexs = CreatAboutRayRenderTexture(GraphicsFormat.R16_SInt);
+            m_rayHitIndexs = CreatAboutRayRenderTexture(GraphicsFormat.R16_SFloat);
             
             m_rayHitColors = CreatAboutRayRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
             m_rayHitColors.filterMode = FilterMode.Bilinear;
@@ -171,12 +176,18 @@ namespace MyDDGI
         {
             int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
             int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
+            
+            int dx = (depthOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int dy = (depthOctResolution + 2) * probeCounts.z + 2;
             L.probeStep = probeDimensions;
             L.probeCounts = probeCounts;
             L.probeStartPosition = StartPosition;
             L.irradianceTextureWidth = x;
             L.irradianceTextureHeight = y;
             L.irradianceProbeSideLength = irradianceOctResolution;
+            L.depthTextureWidth = dx;
+            L.depthTextureHeight = dy;
+            L.depthProbeSideLength = depthOctResolution;
             L.normalBias = normalBias;
             m_irradianceFieldBuffer.SetData(new []{L});
         }
@@ -225,7 +236,7 @@ namespace MyDDGI
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"skyCubeMap" ,SkyCubeMap);
             
             DirectRenderRayHitGBuffer.SetInt("probeSideLength" ,irradianceOctResolution);
-            DirectRenderRayHitGBuffer.SetFloat("energyPreservation" ,1.0f);
+            DirectRenderRayHitGBuffer.SetFloat("energyPreservation" ,recursiveEnergyPreservation);
             int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
             int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
             DirectRenderRayHitGBuffer.SetInts("baseColorMapSize" ,new int[]{1024,1024});
@@ -245,12 +256,12 @@ namespace MyDDGI
             UpdateIrradianceProbeDepth.SetBuffer(kernelHandle ,"L" ,m_irradianceFieldBuffer);
             
             
-            int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
-            int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
+            int dx = (depthOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int dy = (depthOctResolution + 2) * probeCounts.z + 2;
             
-            UpdateIrradianceProbeDepth.SetInt("fullTextureWidth" ,x);
-            UpdateIrradianceProbeDepth.SetInt("fullTextureHeight" ,y);
-            UpdateIrradianceProbeDepth.SetInt("probeSideLength" ,irradianceOctResolution);
+            UpdateIrradianceProbeDepth.SetInt("fullTextureWidth" ,dx);
+            UpdateIrradianceProbeDepth.SetInt("fullTextureHeight" ,dy);
+            UpdateIrradianceProbeDepth.SetInt("probeSideLength" ,depthOctResolution);
             
             UpdateIrradianceProbeDepth.SetFloat("maxDistance" ,10.0f);
             UpdateIrradianceProbeDepth.SetFloat("hysteresis" ,hysteresis);
@@ -260,7 +271,7 @@ namespace MyDDGI
             
             
             
-            UpdateIrradianceProbeDepth.Dispatch(kernelHandle, x / 8 , y / 8 , 1);
+            UpdateIrradianceProbeDepth.Dispatch(kernelHandle, dx / 8 , dy / 8 , 1);
             
         }
         
@@ -300,16 +311,17 @@ namespace MyDDGI
             CopyProbeEdges.SetInt("probeSideLength" ,irradianceOctResolution);
             CopyProbeEdges.SetTexture(kernelHandle ,"results" ,m_irradianceProbes);
             CopyProbeEdges.Dispatch(kernelHandle, x / 8 , y / 8 , 1);
-            
+            int dx = (depthOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int dy = (depthOctResolution + 2) * probeCounts.z + 2;
             CopyProbeEdges.SetTexture(kernelHandle ,"results" ,m_meanDistProbes);
-            CopyProbeEdges.Dispatch(kernelHandle, x / 8 , y / 8 , 1);
+            CopyProbeEdges.Dispatch(kernelHandle, dx / 8 , dy / 8 , 1);
             
         }
 
         void SetGlocalShaderVariables()
         {
             Shader.SetGlobalInt("probeSideLength" ,irradianceOctResolution);
-            Shader.SetGlobalFloat("energyPreservation" ,1.0f);
+            Shader.SetGlobalFloat("energyPreservation" ,recursiveEnergyPreservation);
             int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
             int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
             Shader.SetGlobalInt("baseColorMapSize_x" ,1024);

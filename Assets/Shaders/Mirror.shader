@@ -2,7 +2,6 @@ Shader "Unlit/Mirror"
 {
     Properties
     {
-        [MainTexture]_BaseMap ("Base Texture",2D) = "white"{}
         _UvMap ("UvMap Texture",2D) = "white"{}
         _BaseColor("Base Color",Color)=(1,1,1,1)
         [Toggle]_IsSpecular("是否开启高光", Float) = 1
@@ -20,10 +19,10 @@ Shader "Unlit/Mirror"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
         #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
-       
-        //除了贴图外，要暴露在Inspector面板上的变量都需要缓存到CBUFFER中
+        
+        
         CBUFFER_START(UnityPerMaterial)
-        float4 _BaseMap_ST;
+        float4 _UvMap_ST;
         half4 _BaseColor;
         half _IsSpecular;
         CBUFFER_END
@@ -58,10 +57,11 @@ Shader "Unlit/Mirror"
                 float3 normalWS : TEXCOORD3;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
-
-            TEXTURE2D(_BaseMap);
-            SAMPLER(sampler_BaseMap);
+            TEXTURE2D_ARRAY(baseColorMaps);
+            
             TEXTURE2D(_UvMap);
+            SAMPLER(sampler_UvMap);
+            TEXTURE2D(_IndexMap);
 
             Varings vert(Attributes IN)
             {
@@ -73,7 +73,7 @@ Shader "Unlit/Mirror"
                 VertexNormalInputs normalInputs = GetVertexNormalInputs(IN.normalOS.xyz);
                 OUT.positionCS = positionInputs.positionCS;
                   
-                OUT.uv=TRANSFORM_TEX(IN.uv,_BaseMap);
+                OUT.uv=TRANSFORM_TEX(IN.uv,_UvMap);
                 OUT.positionWS = positionInputs.positionWS;
                 OUT.viewDirWS = GetCameraPositionWS() - positionInputs.positionWS;
                 OUT.normalWS = normalInputs.normalWS;
@@ -83,13 +83,17 @@ Shader "Unlit/Mirror"
             float4 frag(Varings IN):SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
-                half2 uv = SAMPLE_TEXTURE2D(_UvMap, sampler_BaseMap, IN.uv).xy;
+                half2 uv = SAMPLE_TEXTURE2D(_UvMap, sampler_UvMap, IN.uv).xy;
+                float index = SAMPLE_TEXTURE2D(_IndexMap, sampler_UvMap, IN.uv).x;
                 
-                
-                half4 baseMap = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
-                if(uv.x < 0.001 && uv.y < 0.001)
+                half4 baseMap = SAMPLE_TEXTURE2D_ARRAY(baseColorMaps ,sampler_UvMap, uv, int(index));
+                /*if(uv.x < 0.001 && uv.y < 0.001)
                 {
-                    baseMap = half4(1,1,1,1);
+                    baseMap = half4(1,0,0,1);
+                }*/
+                if(index < -0.01f)
+                {
+                    baseMap = half4(1,0,0,1);
                 }
                 
                 float4 SHADOW_COORDS = TransformWorldToShadowCoord(IN.positionWS);

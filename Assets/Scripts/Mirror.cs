@@ -1,4 +1,5 @@
 ﻿using System;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
@@ -26,10 +27,15 @@ namespace MyDDGI
             _posMap = CreatRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
             _normalMap = CreatRenderTexture(GraphicsFormat.R16G16B16A16_SFloat);
             _uvMap = CreatRenderTexture(GraphicsFormat.R16G16_SFloat);
-            _indexMap = CreatRenderTexture(GraphicsFormat.R16_SInt);
+            _indexMap = CreatRenderTexture(GraphicsFormat.R16_SFloat);
 
             _material = GetComponent<MeshRenderer>().sharedMaterial;
-            _material.SetTexture("_UvMap" ,_uvMap);
+            
+        }
+
+        private void Start()
+        {
+            _material.SetTexture("baseColorMaps" ,Scene.Instance.BaseColorTextureArray);
         }
 
         RenderTexture CreatRenderTexture(GraphicsFormat graphicsFormat)
@@ -42,6 +48,16 @@ namespace MyDDGI
 
         private void Update()
         {
+            _material.SetTexture("baseColorMaps" ,Scene.Instance.BaseColorTextureArray);
+            _material.SetTexture("_UvMap" ,_uvMap);
+            _material.SetTexture("_IndexMap" ,_indexMap);
+            
+            Vector3 v = (SceneView.lastActiveSceneView.camera.transform.position- transform.position).normalized;
+            Vector3 n = -transform.forward;
+            MirrorComputeShader.SetVector("viewDir" ,V3_2_V4(v));
+            MirrorComputeShader.SetVector("normal" ,V3_2_V4(n));
+            MirrorComputeShader.SetVector("cameraPos" ,V3_2_V4(SceneView.lastActiveSceneView.camera.transform.position));
+            
             MirrorComputeShaderUpdate();
             RayQueryComputeShaderUpdate();
         }
@@ -54,11 +70,7 @@ namespace MyDDGI
             MirrorComputeShader.SetTexture(kernelHandle, "rayDirection", _rayDirection);
             MirrorComputeShader.SetMatrix("worldMat" ,transform.localToWorldMatrix);
 
-            Vector3 v = (Camera.main.transform.position - transform.position).normalized;
-            Vector3 n = -transform.forward;
-            MirrorComputeShader.SetVector("viewDir" ,V3_2_V4(v));
-            MirrorComputeShader.SetVector("normal" ,V3_2_V4(n));
-            MirrorComputeShader.SetVector("cameraPos" ,V3_2_V4(Camera.main.transform.position));
+            
             MirrorComputeShader.Dispatch(kernelHandle, 256 / 8, 256 / 8, 1);
         }
 

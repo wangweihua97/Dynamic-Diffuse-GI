@@ -1,6 +1,7 @@
 ﻿#pragma kernel CSMain
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 #include "GridHelpers.hlsl"
 #define pi 3.1415926535
 #define LINEAR_BLENDING 1
@@ -18,7 +19,7 @@ Texture2D<float4> rayOrigin;
 RWTexture2D<float3> posMap;
 RWTexture2D<float3> normalMap;
 RWTexture2D<float2> uvMap;
-RWTexture2D<int> indexMap;
+RWTexture2D<float> indexMap;
 
 RWTexture2D<float3> rayHitColors;
 Texture2D<float4> irradianceMeanMeanSquared;
@@ -62,8 +63,8 @@ float3 BlinnPhongLighting(float3 posWS ,float3 normalWS ,int index ,float2 uv ,f
     int2 iuv = int2(baseColorMapSize * uv);
     float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,index)].xyz;
     //float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,0)].xyz;
-    half3 diffuse = baseCorlor * nl * half3(1,1,1)* light.color;
-    half3 specular = atten * light.color * pow(nh ,16);
+    half3 diffuse =  baseCorlor * nl * half3(1,1,1)* light.color;
+    half3 specular =  light.color * pow(nh ,16);
     return saturate(diffuse + specular);
 }
 
@@ -76,7 +77,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
     float3 wsN = normalMap[C].xyz;
     float3 wsPosition = posMap[C].xyz;
-    int hitIndex = indexMap[C].x;
+    int hitIndex = int(indexMap[C].x);
     float2 hitUv = uvMap[C].xy;
     
     if (dot(wsN, wsN) < 0.01) {
@@ -90,6 +91,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float3 w_o = normalize(wsPosition - rayOrigin[C].xyz);
     if (hitIndex < 0) {
         rayHitColors[C] = skyCubeMap.SampleLevel(samplerskyCubeMap, w_o, 0);
+        //rayHitColors[C] = float3(0,0,0);
         return;
     }
     // Glossy coefficient in BSDF (this code unpacks
@@ -180,7 +182,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             float distToProbe = length(probeToPoint);
             //int2 itexCoord = int2(irradianceMapSize * texCoord);
             //float2 temp = irradianceMeanMeanSquared[itexCoord].xy;
-            float2 temp = irradianceMeanMeanSquared.SampleLevel(samplerirradianceMeanMeanSquared, texCoord.yx ,0).rg;
+            float2 temp = irradianceMeanMeanSquared.SampleLevel(samplerirradianceMeanMeanSquared, texCoord,0).rg;
             float mean = temp.x;
             float variance = abs(square(temp.x) - temp.y);
 
@@ -208,7 +210,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         //Irradiance3 probeIrradiance = texture(L[0].irradianceProbeGridbuffer, texCoord).rgb;
         //Irradiance3 probeIrradiance = irradianceMap[itexCoord].rgb;
         
-        Irradiance3 probeIrradiance = irradianceMap.SampleLevel(samplerirradianceMap, texCoord.yx ,0).rgb;
+        Irradiance3 probeIrradiance = irradianceMap.SampleLevel(samplerirradianceMap, texCoord ,0).rgb;
         
 
         // A tiny bit of light is really visible due to log perception, so
@@ -243,4 +245,5 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     netIrradiance *= energyPreservation;
 
     rayHitColors[C] = 0.5 * pi * netIrradiance + blinnPhong;
+    //rayHitColors[C] =  blinnPhong;
 }
