@@ -173,7 +173,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         
         // Moment visibility test
         {
-            float2 texCoord = textureCoordFromDirection(-dir,
+            float2 texCoord = textureCoordFromDirection(-dir.xzy,
                 p,
                 L[0].depthTextureWidth,
                 L[0].depthTextureHeight,
@@ -201,7 +201,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                  
         float3 irradianceDir = wsN;
 
-        float2 texCoord = textureCoordFromDirection(normalize(irradianceDir),
+        float2 texCoord = textureCoordFromDirection(normalize(irradianceDir.xzy),
             p,
             L[0].irradianceTextureWidth,
             L[0].irradianceTextureHeight,
@@ -245,5 +245,4 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     netIrradiance *= energyPreservation;
 
     rayHitColors[C] = 0.5 * pi * netIrradiance + blinnPhong;
-    //rayHitColors[C] =  blinnPhong;
 }

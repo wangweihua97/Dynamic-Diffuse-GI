@@ -7,6 +7,7 @@ public class DebugRenderTexture : MonoBehaviour
 
     public Material RayHitColorMaterial;
     public Material ProbesIrradianceMaterial;
+    public Material DirectRenderMaterial;
     private void Awake()
     {
         Instance = this;
@@ -20,6 +21,11 @@ public class DebugRenderTexture : MonoBehaviour
     public void SetProbesIrradianceRenderTexture(RenderTexture rt)
     {
         ProbesIrradianceMaterial.mainTexture = rt;
+    }
+    
+    public void SetDirectRenderMaterialTexture(RenderTexture rt)
+    {
+        DirectRenderMaterial.mainTexture = rt;
     }
     
 }

@@ -74,7 +74,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             rayProbeDistance = maxDistance;
         }
 
-        float3 texelDirection = octDecode(normalizedOctCoord(int2(id.xy)));
+        float3 texelDirection = octDecode(normalizedOctCoord(int2(id.xy))).xzy;
 
         float weight = max(0.0, dot(texelDirection, rayDirection));
         if (weight >= 0.001) {

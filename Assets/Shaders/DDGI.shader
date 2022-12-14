@@ -100,6 +100,7 @@ Shader "Unlit/DDGI"
                 half3 specular = atten * light.color * pow(nh ,16);
                 
                 half3 color=diffuse*_BaseColor.xyz +specular;
+                //half3 color=diffuse*_BaseColor.xyz;
                 
                 
                 int2 baseColorMapSize = int2(baseColorMapSize_x,baseColorMapSize_y);
@@ -168,7 +169,7 @@ Shader "Unlit/DDGI"
                     
                     // Moment visibility test
                     {
-                        float2 texCoord = textureCoordFromDirection(-dir,
+                        float2 texCoord = textureCoordFromDirection(-dir.xzy,
                             p,
                             L[0].depthTextureWidth,
                             L[0].depthTextureHeight,
@@ -196,7 +197,7 @@ Shader "Unlit/DDGI"
                              
                     float3 irradianceDir = n;
             
-                    float2 texCoord = textureCoordFromDirection(normalize(irradianceDir),
+                    float2 texCoord = textureCoordFromDirection(normalize(irradianceDir.xzy),
                         p,
                         L[0].irradianceTextureWidth,
                         L[0].irradianceTextureHeight,
@@ -206,7 +207,6 @@ Shader "Unlit/DDGI"
                     //Irradiance3 probeIrradiance = irradianceMap[itexCoord].rgb;
                     
                     Irradiance3 probeIrradiance = SAMPLE_TEXTURE2D(irradianceMap ,samplerirradianceMap ,texCoord).rgb;
-                    
             
                     // A tiny bit of light is really visible due to log perception, so
                     // crush tiny weights but keep the curve continuous. This must be done
@@ -240,6 +240,7 @@ Shader "Unlit/DDGI"
                 netIrradiance *= energyPreservation;
                            
                 return half4(0.5 * pi * netIrradiance * baseMap.xyz * _BaseColor.xyz + color ,1.0);
+                //return half4(0.5 * pi * netIrradiance * baseMap.xyz * _BaseColor.xyz ,1.0);
             }
             ENDHLSL  //ENDCG          
         }

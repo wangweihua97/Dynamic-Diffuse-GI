@@ -30,7 +30,7 @@ namespace MyDDGI
     };
     public class DDGI : MonoBehaviour
     {
-        const float recursiveEnergyPreservation = 0.85f;
+        public float recursiveEnergyPreservation = 0.80f;
         
         float3          probeDimensions         = new float3(1,1,1);
 

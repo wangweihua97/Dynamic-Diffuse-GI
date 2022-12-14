@@ -166,6 +166,7 @@ float2 textureCoordFromDirection(float3 dir, int probeIndex, int fullTextureWidt
     float2 normalizedProbeTopLeftPosition = float2(probeTopLeftPosition) / float2((float)fullTextureWidth, (float)fullTextureHeight);
 
     return float2(normalizedProbeTopLeftPosition + octCoordNormalizedToTextureDimensions);
+    //return float2( normalizedOctCoordZeroOne);
 }
 /** 
  \param probeCoords Integer (stored in float) coordinates of the probe on the probe grid 
