@@ -4,7 +4,7 @@
 
 Texture2D<float4>                 rayDirections;
 Texture2D<float3>                 rayHitLocations;
-Texture2D<float3>                 rayHitRadiances;
+Texture2D<float4>                 rayHitRadiances;
 Texture2D<float3>                 rayHitNormals;
 Texture2D<float4>                 rayOrigins;
 
@@ -45,7 +45,7 @@ float2 normalizedOctCoord(int2 fragCoord) {
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
 
-    int relativeProbeID = probeID(id.xy);
+    int relativeProbeID = probeID(float2(id.xy) );
     float4 result = float4(0.0f,0.0f,0.0f,0.0f);;
     if (relativeProbeID == -1) {
         results[id.xy] = 0.97 *results[id.xy] + 0.03 * result;
@@ -75,7 +75,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             rayProbeDistance = maxDistance;
         }
 
-        float3 texelDirection = octDecode(normalizedOctCoord(int2(id.xy))).xzy;
+        float3 texelDirection = octDecode(normalizedOctCoord(int2(id.xy)));
 
         float weight = pow(max(0.0, dot(texelDirection, rayDirection)), depthSharpness);
         if (weight >= epsilon) {

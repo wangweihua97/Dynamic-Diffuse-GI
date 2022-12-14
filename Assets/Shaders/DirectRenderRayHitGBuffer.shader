@@ -1,15 +1,15 @@
-Shader "Unlit/DDGI"
+Shader "Unlit/DirectRenderRayHitGBuffer"
 {
     Properties
     {
-        [MainTexture]_BaseMap ("Base Texture",2D) = "white"{}
         _BaseColor("Base Color",Color)=(1,1,1,1)
+        skyCubeMap("skyCubeMap", CUBE) = ""{}
     }
     SubShader
     {
         Tags
         {
-            "RenderPipeline"="UniversalPipeline"//这是一个URP Shader！
+            "RenderPipeline"="UniversalPipeline"
             "Queue"="Geometry"
             "RenderType"="Opaque"
         }
@@ -19,29 +19,27 @@ Shader "Unlit/DDGI"
         #include "GridHelpers.hlsl"
         #define pi 3.1415926535
        
-        //除了贴图外，要暴露在Inspector面板上的变量都需要缓存到CBUFFER中
         StructuredBuffer<IrradianceField> L;
         int probeSideLength;
+        int probeSideLength;
         float energyPreservation;
-        int baseColorMapSize_x;
-        int baseColorMapSize_y;
-        int irradianceMapSize_x;
-        int irradianceMapSize_y;
+        int2 baseColorMapSize;
+        int2 irradianceMapSize;
+        
+        
         CBUFFER_START(UnityPerMaterial)
-        float4 _BaseMap_ST;
-        float4 irradianceMap_ST;
+        float4 rayOrigin_ST;
         half4 _BaseColor;
-        half _IsSpecular;
         CBUFFER_END
         ENDHLSL
 
         Pass
         {
-            Tags{"LightMode"="UniversalForward"}//这个Pass最终会输出到颜色缓冲里
+            Tags{"LightMode"="UniversalForward"}
             
             cull off
 
-            HLSLPROGRAM //CGPROGRAM
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
@@ -51,39 +49,43 @@ Shader "Unlit/DDGI"
             struct Attributes
             {
                 float4 positionOS : POSITION;
-                float4 normalOS : NORMAL;
                 float2 uv : TEXCOORD;
             };
-            struct Varings//这就是v2f
+            struct Varings
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD;
                 float3 positionWS : TEXCOORD1;
-                float3 viewDirWS : TEXCOORD2;
-                float3 normalWS : TEXCOORD3;
             };
-
-            TEXTURE2D(_BaseMap);
-            SAMPLER(sampler_BaseMap);
-            TEXTURE2D(irradianceMap);
-            SAMPLER(samplerirradianceMap);
+            TEXTURE2D_ARRAY(baseColorMaps);
+            
+            TEXTURE2D(rayOrigin);
+            SAMPLER(samplerrayOrigin);
+            TEXTURE2D(posMap);
+            TEXTURE2D(normalMap);
+            TEXTURE2D(uvMap);
+            TEXTURE2D(indexMap);
+            
             TEXTURE2D(irradianceMeanMeanSquared);
+            TEXTURE2D(irradianceMap);
+            
+            TEXTURECUBE(skyCubeMap);
+            
+            
             Varings vert(Attributes IN)
             {
                 Varings OUT;
                 VertexPositionInputs positionInputs = GetVertexPositionInputs(IN.positionOS.xyz);
-                VertexNormalInputs normalInputs = GetVertexNormalInputs(IN.normalOS.xyz);
                 OUT.positionCS = positionInputs.positionCS;
                   
-                OUT.uv=TRANSFORM_TEX(IN.uv,_BaseMap);
+                OUT.uv = IN.uv;
                 OUT.positionWS = positionInputs.positionWS;
-                OUT.viewDirWS = GetCameraPositionWS() - positionInputs.positionWS;
-                OUT.normalWS = normalInputs.normalWS;
                 return OUT;
             }
-
+            
             float4 frag(Varings IN):SV_Target
             {
+                
                 half4 baseMap = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv);
                 float4 SHADOW_COORDS = TransformWorldToShadowCoord(IN.positionWS);
                 Light light = GetMainLight(SHADOW_COORDS);
@@ -240,41 +242,8 @@ Shader "Unlit/DDGI"
                 netIrradiance *= energyPreservation;
                            
                 return half4(0.5 * pi * netIrradiance * baseMap.xyz * _BaseColor.xyz + color ,1.0);
-                //return half4(0.5 * pi * netIrradiance * baseMap.xyz * _BaseColor.xyz ,1.0);
             }
             ENDHLSL  //ENDCG          
         }
-        
-        pass {
-			Tags{ "LightMode" = "ShadowCaster" }
-			HLSLPROGRAM
-			#pragma vertex vert
-			#pragma fragment frag
- 
-			struct appdata
-			{
-				float4 vertex : POSITION;
-			};
- 
-			struct v2f
-			{
-				float4 pos : SV_POSITION;
-			};
- 
-			sampler2D _MainTex;
-			float4 _MainTex_ST;
- 
-			v2f vert(appdata v)
-			{
-				v2f o;
-				o.pos = mul(UNITY_MATRIX_MVP,v.vertex);
-				return o;
-			}
-			float4 frag(v2f i) : SV_Target
-			{
-				return half4(0.0,0.0,0.0,1.0);
-			}
-			ENDHLSL
-		}
     }
 }

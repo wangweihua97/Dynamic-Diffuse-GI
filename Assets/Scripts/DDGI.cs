@@ -6,6 +6,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using Random = UnityEngine.Random;
 
 namespace MyDDGI
@@ -32,9 +33,9 @@ namespace MyDDGI
     {
         public float recursiveEnergyPreservation = 0.80f;
         
-        float3          probeDimensions         = new float3(1,1,1);
+        float3          probeDimensions         = new float3(1,0.5f,1);
 
-        int3            probeCounts             = new int3(30, 7, 20);
+        int3            probeCounts             = new int3(30, 14, 20);
 
         /** Side length of one face */
         int             irradianceOctResolution = 8;
@@ -58,7 +59,9 @@ namespace MyDDGI
             The shadow casting surface is the boundary for shadow, so the nearer an imprecise value is
             to it the more the light leaks.
         */
-        float           normalBias = 0.25f;
+        public float           normalBias = 0.25f;
+
+        public float maxDistance = 10.0f;
 
 		/** Control the weight of new rays when updating each irradiance probe. A value close to 1 will
 			very slowly change the probe textures, improving stability but reducing accuracy when objects
@@ -87,7 +90,7 @@ namespace MyDDGI
         bool            showLights = false;
         bool            encloseBounds = false;
         
-        float3 StartPosition = new float3(-15,-0.5f,-10);
+        float3 StartPosition = new float3(-15,-0.8f,-10);
         
         RenderTexture                m_irradianceProbes;
         RenderTexture                m_meanDistProbes;
@@ -115,6 +118,8 @@ namespace MyDDGI
         public List<Texture> Textures;
 
         public IrradianceField L;
+
+        public Material DirectRenderMat;
 
         int ProbeAmount;
         public Cubemap SkyCubeMap;
@@ -147,7 +152,12 @@ namespace MyDDGI
             CreatGraphicsBuffer();
             CreatIrradianceField();
         }
-        
+
+        private void Start()
+        {
+            DirectRenderRayHitGBuffer.EnableKeyword("MAIN_LIGHT_CALCULATE_SHADOWS");
+        }
+
         RenderTexture CreatAboutRayRenderTexture(GraphicsFormat graphicsFormat)
         {
             var renderTexture = new RenderTexture(irradianceRaysPerProbe ,ProbeAmount,graphicsFormat,GraphicsFormat.None);
@@ -221,6 +231,7 @@ namespace MyDDGI
 
         void StartDirectRenderRayHitGBuffer()
         {
+            
             int kernelHandle = DirectRenderRayHitGBuffer.FindKernel("CSMain");
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "rayOrigin", m_irradianceRayOrigins);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "posMap", m_rayHitPoses);
@@ -229,12 +240,12 @@ namespace MyDDGI
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "indexMap", m_rayHitIndexs);
             DirectRenderRayHitGBuffer.SetBuffer(kernelHandle ,"L" ,m_irradianceFieldBuffer);
             
+            
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "rayHitColors", m_rayHitColors);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "irradianceMeanMeanSquared", m_meanDistProbes);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle, "irradianceMap", m_irradianceProbes);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"baseColorMaps" ,Scene.Instance.BaseColorTextureArray);
             DirectRenderRayHitGBuffer.SetTexture(kernelHandle ,"skyCubeMap" ,SkyCubeMap);
-            
             DirectRenderRayHitGBuffer.SetInt("probeSideLength" ,irradianceOctResolution);
             DirectRenderRayHitGBuffer.SetFloat("energyPreservation" ,recursiveEnergyPreservation);
             int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
@@ -243,6 +254,32 @@ namespace MyDDGI
             DirectRenderRayHitGBuffer.SetInts("irradianceMapSize" ,new int[]{x
                 ,y});
             DirectRenderRayHitGBuffer.Dispatch(kernelHandle, irradianceRaysPerProbe / 8 , ProbeAmount / 8 , 1);
+        }
+
+        void StartDirectRender()
+        {
+            DirectRenderMat.SetTexture("rayOrigin", m_irradianceRayOrigins);
+            DirectRenderMat.SetTexture("posMap", m_rayHitPoses);
+            DirectRenderMat.SetTexture("normalMap", m_rayHitNormals);
+            DirectRenderMat.SetTexture("uvMap", m_rayHitUvs);
+            DirectRenderMat.SetTexture("indexMap", m_rayHitIndexs);
+            DirectRenderMat.SetBuffer("L" ,m_irradianceFieldBuffer);
+            
+            
+            DirectRenderMat.SetTexture("irradianceMeanMeanSquared", m_meanDistProbes);
+            DirectRenderMat.SetTexture("irradianceMap", m_irradianceProbes);
+            DirectRenderMat.SetTexture("baseColorMaps" ,Scene.Instance.BaseColorTextureArray);
+            DirectRenderMat.SetTexture("skyCubeMap" ,SkyCubeMap);
+            DirectRenderMat.SetInt("probeSideLength" ,irradianceOctResolution);
+            DirectRenderMat.SetFloat("energyPreservation" ,recursiveEnergyPreservation);
+            int x = (irradianceOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
+            int y = (irradianceOctResolution + 2) * probeCounts.z + 2;
+            
+            RenderTexture rt = RenderTexture.GetTemporary(irradianceRaysPerProbe ,ProbeAmount,0, GraphicsFormat.R16G16B16A16_SFloat);
+            Graphics.Blit(m_rayHitColors ,rt ,DirectRenderMat);
+            Graphics.Blit(rt, m_rayHitColors);
+            rt.Release();
+            
         }
 
         void StartUpdateIrradianceProbeDepth()
@@ -263,7 +300,7 @@ namespace MyDDGI
             UpdateIrradianceProbeDepth.SetInt("fullTextureHeight" ,dy);
             UpdateIrradianceProbeDepth.SetInt("probeSideLength" ,depthOctResolution);
             
-            UpdateIrradianceProbeDepth.SetFloat("maxDistance" ,10.0f);
+            UpdateIrradianceProbeDepth.SetFloat("maxDistance" ,maxDistance);
             UpdateIrradianceProbeDepth.SetFloat("hysteresis" ,hysteresis);
             UpdateIrradianceProbeDepth.SetFloat("depthSharpness" ,depthSharpness);
             
@@ -293,9 +330,9 @@ namespace MyDDGI
             UpdateIrradianceProbeIrradiance.SetInt("fullTextureHeight" ,y);
             UpdateIrradianceProbeIrradiance.SetInt("probeSideLength" ,irradianceOctResolution);
             
-            UpdateIrradianceProbeIrradiance.SetFloat("maxDistance" ,10.0f);
-            UpdateIrradianceProbeIrradiance.SetFloat("hysteresis" ,0.98f);
-            UpdateIrradianceProbeIrradiance.SetFloat("depthSharpness" ,50.0f);
+            UpdateIrradianceProbeIrradiance.SetFloat("maxDistance" ,maxDistance);
+            UpdateIrradianceProbeIrradiance.SetFloat("hysteresis" ,hysteresis);
+            UpdateIrradianceProbeIrradiance.SetFloat("depthSharpness" ,depthSharpness);
             UpdateIrradianceProbeIrradiance.SetTexture(kernelHandle ,"results" ,m_irradianceProbes);
             
             UpdateIrradianceProbeIrradiance.Dispatch(kernelHandle, x / 8 , y / 8 , 1);
@@ -350,7 +387,8 @@ namespace MyDDGI
         {
             GenerateRandomRays();
             StartRayQuery();
-            StartDirectRenderRayHitGBuffer();
+            //StartDirectRenderRayHitGBuffer();
+            StartDirectRender();
             StartUpdateIrradianceProbeDepth();
             StartUpdateIrradianceProbeIrradiance();
             StartCopyProbeEdges();

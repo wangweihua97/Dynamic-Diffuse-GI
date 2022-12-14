@@ -127,7 +127,7 @@ float2 signNotZero(in float2 v) {
 float3 octDecode(float2 o) {
     float3 v = float3(o.x, o.y, 1.0 - abs(o.x) - abs(o.y));
     if (v.z < 0.0) {
-        v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);
+        v.xy = (float2(1.0 ,1.0) - abs(v.yx)) * signNotZero(v.xy);
     }
     return normalize(v);
 }
@@ -136,7 +136,7 @@ float2 octEncode(in float3 v) {
     float l1norm = abs(v.x) + abs(v.y) + abs(v.z);
     float2 result = v.xy * (1.0 / l1norm);
     if (v.z < 0.0) {
-        result = (1.0 - abs(result.yx)) * signNotZero(result.xy);
+        result = (float2(1.0 ,1.0) - abs(result.yx)) * signNotZero(result.xy);
     }
     return result;
 }

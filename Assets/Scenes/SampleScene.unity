@@ -186,6 +186,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   RayHitColorMaterial: {fileID: 2100000, guid: a5feb11e14bc45349bee38ff94f60019, type: 2}
   ProbesIrradianceMaterial: {fileID: 2100000, guid: 5a659f84262750a47ab53246629a8af6, type: 2}
+  DirectRenderMaterial: {fileID: 0}
 --- !u!1 &432840063
 GameObject:
   m_ObjectHideFlags: 0
@@ -796,7 +797,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0a513ea93304ec19124ee96f127d304, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  recursiveEnergyPreservation: 0.8
+  recursiveEnergyPreservation: 0.85
+  normalBias: 1
+  maxDistance: 10
   GenerateRays: {fileID: 7200000, guid: a8d6572f86a14c6cbd3770a4cd76b4bd, type: 3}
   RayQuery: {fileID: 7200000, guid: 0d347b1ba38b4a66a568a368b47192de, type: 3}
   DirectRenderRayHitGBuffer: {fileID: 7200000, guid: 9fafe99e32294a7b830988ee7c6c8165, type: 3}
@@ -805,6 +808,7 @@ MonoBehaviour:
   CopyProbeEdges: {fileID: 7200000, guid: 0d5ba4a0f77b42948e00d9b3a7b262b0, type: 3}
   Textures:
   - {fileID: 2800000, guid: 555fec33f51d9fa46ba1d03e9f658c2e, type: 3}
+  DirectRenderMat: {fileID: 2100000, guid: ab7832b9a97f627449cb7c8785de34d3, type: 2}
   SkyCubeMap: {fileID: 8900000, guid: b30035c21f53ad04981ddd751ed608a4, type: 2}
 --- !u!4 &1351714261
 Transform:
@@ -1256,7 +1260,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3238981700674119224, guid: bf4afd810fbc98c4d8ea8fcaf5e4b948, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 14.52
+      value: -5.89
       objectReference: {fileID: 0}
     - target: {fileID: 3238981700674119224, guid: bf4afd810fbc98c4d8ea8fcaf5e4b948, type: 3}
       propertyPath: m_LocalRotation.w
@@ -1426,7 +1430,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1533420788377941722, guid: b035173b20d4de54c9b910521494e253, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 4.75
+      value: -0.07
       objectReference: {fileID: 0}
     - target: {fileID: 1533420788377941722, guid: b035173b20d4de54c9b910521494e253, type: 3}
       propertyPath: m_LocalPosition.y
@@ -1515,7 +1519,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6330156278213850699, guid: 51463396f20a03c469d1adc2236cc7a4, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 21.32
+      value: 11.94
       objectReference: {fileID: 0}
     - target: {fileID: 6330156278213850699, guid: 51463396f20a03c469d1adc2236cc7a4, type: 3}
       propertyPath: m_LocalRotation.w

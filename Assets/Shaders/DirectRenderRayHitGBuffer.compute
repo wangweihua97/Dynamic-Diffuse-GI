@@ -65,7 +65,8 @@ float3 BlinnPhongLighting(float3 posWS ,float3 normalWS ,int index ,float2 uv ,f
     //float3 baseCorlor = baseColorMaps[uint3(iuv.x ,iuv.y ,0)].xyz;
     half3 diffuse =  baseCorlor * nl * half3(1,1,1)* light.color;
     half3 specular =  light.color * pow(nh ,16);
-    return saturate(diffuse + specular);
+    return diffuse;
+    //return saturate(diffuse + specular);
 }
 
 
@@ -80,18 +81,19 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     int hitIndex = int(indexMap[C].x);
     float2 hitUv = uvMap[C].xy;
     
-    if (dot(wsN, wsN) < 0.01) {
-        rayHitColors[C] = float3(0,0,0);
-        return;
-    }
+    
     
     
     // View vector
     //float3 w_o = normalize(rayOrigin[C].xyz - wsPosition);
     float3 w_o = normalize(wsPosition - rayOrigin[C].xyz);
-    if (hitIndex < 0) {
+    
+    if (indexMap[C].x < 0) {
         rayHitColors[C] = skyCubeMap.SampleLevel(samplerskyCubeMap, w_o, 0);
-        //rayHitColors[C] = float3(0,0,0);
+        return;
+    }
+    if (dot(wsN, wsN) < 0.01) {
+        rayHitColors[C] = float3(0,0,0);
         return;
     }
     // Glossy coefficient in BSDF (this code unpacks
@@ -173,7 +175,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         
         // Moment visibility test
         {
-            float2 texCoord = textureCoordFromDirection(-dir.xzy,
+            float2 texCoord = textureCoordFromDirection(-dir,
                 p,
                 L[0].depthTextureWidth,
                 L[0].depthTextureHeight,
@@ -201,7 +203,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                  
         float3 irradianceDir = wsN;
 
-        float2 texCoord = textureCoordFromDirection(normalize(irradianceDir.xzy),
+        float2 texCoord = textureCoordFromDirection(normalize(irradianceDir),
             p,
             L[0].irradianceTextureWidth,
             L[0].irradianceTextureHeight,
