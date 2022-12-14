@@ -20,6 +20,7 @@ Shader "Unlit/DirectRender"
         #define pi 3.1415926535
        
         StructuredBuffer<IrradianceField> L;
+        StructuredBuffer<float4> Colors;
         int probeSideLength;
         float energyPreservation;
         int2 baseColorMapSize;
@@ -96,7 +97,7 @@ Shader "Unlit/DirectRender"
                 if (dot(n, n) < 0.01) {
                     return float4(0,0,0,0);
                 }
-                half4 baseMap = SAMPLE_TEXTURE2D_ARRAY(baseColorMaps, samplerrayOrigin, uv, index);
+                half4 baseMap = Colors[index] * SAMPLE_TEXTURE2D_ARRAY(baseColorMaps, samplerrayOrigin, uv, index);
                 
                 float4 SHADOW_COORDS = TransformWorldToShadowCoord(posWS);
                 Light light = GetMainLight(SHADOW_COORDS);

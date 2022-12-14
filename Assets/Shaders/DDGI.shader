@@ -3,7 +3,7 @@ Shader "Unlit/DDGI"
     Properties
     {
         [MainTexture]_BaseMap ("Base Texture",2D) = "white"{}
-        _BaseColor("Base Color",Color)=(1,1,1,1)
+        [MainColor][HDR]_BaseColor("Base Color",Color)=(1,1,1,1)
     }
     SubShader
     {
@@ -247,9 +247,11 @@ Shader "Unlit/DDGI"
         
         pass {
 			Tags{ "LightMode" = "ShadowCaster" }
+			cull off
 			HLSLPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
+			
  
 			struct appdata
 			{

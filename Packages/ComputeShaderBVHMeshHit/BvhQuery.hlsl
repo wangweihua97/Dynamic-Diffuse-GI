@@ -261,13 +261,14 @@ bool TraverseBvh(float3 origin, float3 rayStep, out float rayScale, out float3 n
     return rayScale != BVH_FLT_MAX;
 }
 
-bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float rayScale, out float3 normal ,out float2 uv ,out int matIndex)
+bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float rayScale, out float3 normal ,out float2 uv ,out int matIndex ,out bool isFront)
 {
     int stack[BVH_STACK_SIZE];
     int stackIdx = 0;
     stack[stackIdx++] = 0;
     rayScale = BVH_FLT_MAX;
     origin = origin - goInfo.Pos;
+    isFront = true;
 
     while(stackIdx)
     {
@@ -299,7 +300,8 @@ bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float r
                         {
                             rayScale = tmpRayScale;
                             normal = tri.normal;
-                            normal = dot(normal ,rayStep) > 0 ? -normal : normal;
+                            isFront = dot(normal ,rayStep) < 0; 
+                            normal = isFront ? normal : -normal;
                             GetHitUV(tri ,origin + rayStep * rayScale ,uv);
                             matIndex = tri.MaterialIndex;
                             
@@ -313,10 +315,11 @@ bool TraverseBvh_GoInfo(GoInfo goInfo,float3 origin, float3 rayStep, out float r
     return rayScale != BVH_FLT_MAX;
 }
 
-bool TraverseBvh_(float3 origin, float3 rayStep, out float rayScale, out float3 normal ,out float2 uv ,out int matId)
+bool TraverseBvh_(float3 origin, float3 rayStep, out float rayScale, out float3 normal ,out float2 uv ,out int matId ,out bool isFront)
 {   
     matId = -1;
     uv = float2(0,0);
+    isFront = true;
     rayScale = BVH_FLT_MAX;
     uint number = 0;
     uint stride = 0;
@@ -336,7 +339,8 @@ bool TraverseBvh_(float3 origin, float3 rayStep, out float rayScale, out float3 
         float3 temp_normal;
         float2 temp_uv;
         int temp_matIndex;
-        if(TraverseBvh_GoInfo(goInfoBuffer[i],origin,rayStep,temp_rayScale, temp_normal,temp_uv,temp_matIndex))
+        bool temp_isFront;
+        if(TraverseBvh_GoInfo(goInfoBuffer[i],origin,rayStep,temp_rayScale, temp_normal,temp_uv,temp_matIndex ,temp_isFront))
         {
             
             if(temp_rayScale < rayScale)
@@ -345,6 +349,7 @@ bool TraverseBvh_(float3 origin, float3 rayStep, out float rayScale, out float3 
                 normal = temp_normal;
                 uv = temp_uv;
                 matId = temp_matIndex;
+                isFront = temp_isFront;
             }
         }
     }

@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1047840840413604720
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1047840840413604726}
+  - component: {fileID: 1047840840413604727}
+  m_Layer: 0
+  m_Name: DDGI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1047840840413604726
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1047840840413604720}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 5.3374233, y: 3.404661, z: -4.4878626}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1047840840413604727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1047840840413604720}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0a513ea93304ec19124ee96f127d304, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  recursiveEnergyPreservation: 0.85
+  normalBias: 0.5
+  maxDistance: 5
+  GenerateRays: {fileID: 7200000, guid: a8d6572f86a14c6cbd3770a4cd76b4bd, type: 3}
+  RayQuery: {fileID: 7200000, guid: 0d347b1ba38b4a66a568a368b47192de, type: 3}
+  DirectRenderRayHitGBuffer: {fileID: 7200000, guid: 9fafe99e32294a7b830988ee7c6c8165, type: 3}
+  UpdateIrradianceProbeDepth: {fileID: 7200000, guid: 7fdbdccdf90d4dd6972ecb78666b76d2, type: 3}
+  UpdateIrradianceProbeIrradiance: {fileID: 7200000, guid: 53fb6cabeff24ce0b4d57d502f398f6b, type: 3}
+  CopyProbeEdges: {fileID: 7200000, guid: 0d5ba4a0f77b42948e00d9b3a7b262b0, type: 3}
+  Textures:
+  - {fileID: 2800000, guid: 555fec33f51d9fa46ba1d03e9f658c2e, type: 3}
+  DirectRenderMat: {fileID: 2100000, guid: ab7832b9a97f627449cb7c8785de34d3, type: 2}
+  SkyCubeMap: {fileID: 8900000, guid: b30035c21f53ad04981ddd751ed608a4, type: 2}

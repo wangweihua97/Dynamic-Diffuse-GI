@@ -38,6 +38,9 @@ namespace MyDDGI
         GraphicsBuffer bvhBuffer;
         GraphicsBuffer triangleBuffer;
         GraphicsBuffer goInfosBuffer;
+        
+        public GraphicsBuffer ColorBuffer;
+        float4[] Colors;
 
         public RenderTexture BaseColorTextureArray;
 
@@ -135,6 +138,19 @@ namespace MyDDGI
             
             goInfosBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, _goInfos.Count, Marshal.SizeOf<GoInfo>());
             goInfosBuffer.SetData(_goInfos);
+            
+            ColorBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, _materials.Count, Marshal.SizeOf<float4>());
+            Colors = new float4[_materials.Count];
+            for (int i = 0; i < _materials.Count; i++)
+            {
+                Colors[i] = Color2float4(_materials[i].color);
+            }
+            ColorBuffer.SetData(Colors);
+        }
+
+        float4 Color2float4(Color c)
+        {
+            return new float4(c.r ,c.g ,c.b ,c.a);
         }
 
         void CreatBaseColorTextureArray()
@@ -168,6 +184,12 @@ namespace MyDDGI
             }
             goInfosBuffer.SetData(_goInfos);
             Mirror.SetBuffer(bvhBuffer ,triangleBuffer ,goInfosBuffer);
+            
+            for (int i = 0; i < _materials.Count; i++)
+            {
+                Colors[i] = Color2float4(_materials[i].color);
+            }
+            ColorBuffer.SetData(Colors);
         }
     }
 }

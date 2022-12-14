@@ -33,9 +33,9 @@ namespace MyDDGI
     {
         public float recursiveEnergyPreservation = 0.80f;
         
-        float3          probeDimensions         = new float3(1,0.5f,1);
+        public float3          probeDimensions         = new float3(1,0.5f,1);
 
-        int3            probeCounts             = new int3(30, 14, 20);
+        public int3            probeCounts             = new int3(30, 14, 20);
 
         /** Side length of one face */
         int             irradianceOctResolution = 8;
@@ -90,7 +90,7 @@ namespace MyDDGI
         bool            showLights = false;
         bool            encloseBounds = false;
         
-        float3 StartPosition = new float3(-15,-0.8f,-10);
+        public float3 StartPosition = new float3(-15,-0.8f,-10);
         
         RenderTexture                m_irradianceProbes;
         RenderTexture                m_meanDistProbes;
@@ -264,7 +264,7 @@ namespace MyDDGI
             DirectRenderMat.SetTexture("uvMap", m_rayHitUvs);
             DirectRenderMat.SetTexture("indexMap", m_rayHitIndexs);
             DirectRenderMat.SetBuffer("L" ,m_irradianceFieldBuffer);
-            
+            DirectRenderMat.SetBuffer("Colors" ,Scene.Instance.ColorBuffer);
             
             DirectRenderMat.SetTexture("irradianceMeanMeanSquared", m_meanDistProbes);
             DirectRenderMat.SetTexture("irradianceMap", m_irradianceProbes);
@@ -350,6 +350,9 @@ namespace MyDDGI
             CopyProbeEdges.Dispatch(kernelHandle, x / 8 , y / 8 , 1);
             int dx = (depthOctResolution + 2) * probeCounts.x * probeCounts.y + 2;
             int dy = (depthOctResolution + 2) * probeCounts.z + 2;
+            CopyProbeEdges.SetInt("fullTextureWidth" ,dx);
+            CopyProbeEdges.SetInt("fullTextureHeight" ,dx);
+            CopyProbeEdges.SetInt("probeSideLength" ,depthOctResolution);
             CopyProbeEdges.SetTexture(kernelHandle ,"results" ,m_meanDistProbes);
             CopyProbeEdges.Dispatch(kernelHandle, dx / 8 , dy / 8 , 1);
             

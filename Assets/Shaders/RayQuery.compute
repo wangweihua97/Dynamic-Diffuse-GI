@@ -20,15 +20,15 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     float rayScale;
     float2 uv = float2(0,0);
     int index = -1;
-    
-    if (TraverseBvh_(rayStart, rayDir * 1000, rayScale, normal ,uv ,index) )
+    bool isFront;
+    if (TraverseBvh_(rayStart, rayDir * 100, rayScale, normal ,uv ,index ,isFront) )
     {
-        pos = rayStart + rayDir * 1000 * rayScale;
+        pos = rayStart + rayDir * (100 * rayScale - 0.01);
     }
     
     if(index == -1)
     {
-        pos = rayStart + 100 * rayDir;
+        pos = rayStart + 10 * rayDir;
     }
     posMap[id.xy] = pos;
     normalMap[id.xy] = normal;

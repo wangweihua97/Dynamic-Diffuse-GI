@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 863fd9f1198d65048ac60bc63863b921, type: 3}
+  m_Name: Window
+  m_EditorClassIdentifier: 
+  bvhDatas:
+  - min: {x: 0.053364515, y: 0.57219696, z: 4.9993305}
+    max: {x: 2.2313652, y: 5.156412, z: 4.9993305}
+    leftIdx: -1
+    rightIdx: -1
+    triangleIdx: 0
+    triangleCount: 4
+  triangles:
+  - pos0: {x: 2.2313652, y: 5.156412, z: 4.999331}
+    pos1: {x: 2.2313647, y: 0.57219696, z: 4.9993305}
+    pos2: {x: 1.1423646, y: 0.57219696, z: 4.9993305}
+    normal: {x: -0, y: 0.00000010401718, z: -1}
+    uv0: {x: 0, y: 0}
+    uv1: {x: 0, y: 0}
+    uv2: {x: 0, y: 0}
+    MaterialIndex: 0
+  - pos0: {x: 1.1423646, y: 0.57219696, z: 4.9993305}
+    pos1: {x: 0.053364478, y: 0.57219696, z: 4.9993305}
+    pos2: {x: 2.2313652, y: 5.156412, z: 4.999331}
+    normal: {x: -0, y: 0.00000010401718, z: -1}
+    uv0: {x: 0, y: 0}
+    uv1: {x: 0, y: 0}
+    uv2: {x: 0, y: 0}
+    MaterialIndex: 0
+  - pos0: {x: 0.053364478, y: 0.57219696, z: 4.9993305}
+    pos1: {x: 0.05336488, y: 5.156412, z: 4.999331}
+    pos2: {x: 2.2313652, y: 5.156412, z: 4.999331}
+    normal: {x: -0, y: 0.00000010401718, z: -1}
+    uv0: {x: 0, y: 0}
+    uv1: {x: 0, y: 0}
+    uv2: {x: 0, y: 0}
+    MaterialIndex: 0
+  - pos0: {x: 0.05336488, y: 5.156412, z: 4.999331}
+    pos1: {x: 1.1423651, y: 5.156412, z: 4.999331}
+    pos2: {x: 2.2313652, y: 5.156412, z: 4.999331}
+    normal: {x: -0, y: -0, z: -0}
+    uv0: {x: 0, y: 0}
+    uv1: {x: 0, y: 0}
+    uv2: {x: 0, y: 0}
+    MaterialIndex: 0

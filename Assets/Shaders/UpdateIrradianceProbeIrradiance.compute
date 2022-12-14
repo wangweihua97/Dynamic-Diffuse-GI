@@ -65,7 +65,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         // Will be zero on a miss
 		float3 rayHitNormal    = rayHitNormals[C].xyz;
 
-        rayHitLocation += rayHitNormal * 0.01f;
+        rayHitLocation += rayHitNormal * 0.00f;
 
 		float rayProbeDistance = min(maxDistance, length(probeLocation - rayHitLocation));
         
