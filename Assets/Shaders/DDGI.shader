@@ -240,7 +240,7 @@ Shader "Unlit/DDGI"
                 netIrradiance *= energyPreservation;
                            
                 return half4(0.5 * pi * netIrradiance * baseMap.xyz * _BaseColor.xyz + color ,1.0);
-                //return half4(0.5 * pi * netIrradiance * baseMap.xyz * _BaseColor.xyz ,1.0);
+                //return half4(color ,1.0);
             }
             ENDHLSL  //ENDCG          
         }
